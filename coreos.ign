@@ -1,0 +1,44 @@
+{
+  "ignition": {
+    "version": "3.3.0"
+  },
+  "passwd": {
+    "users": [
+      {
+        "groups": [
+          "docker",
+          "wheel"
+        ],
+        "name": "admin",
+        "passwordHash": "$y$j9T$xP4E93jrWCP37dNfSKGJL/$EYZt/NBmSBjHu9EeaKKVXKnszK0iJsHH/XCbXqdn.9B",
+        "sshAuthorizedKeys": [
+          "ssh-rsa AAAAB3NzaC1yc2EAAAADAQA"
+        ]
+      }
+    ]
+  },
+  "storage": {
+    "files": [
+      {
+        "overwrite": true,
+        "path": "/usr/local/bin/docker-compose",
+        "contents": {
+          "source": "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose",
+          "verification": {
+            "hash": "sha512-DBB485B512B885DE15FF92C24D3CA1B0F46D62BF5DBCD166FD286F545652FA673E4988CFD43A708F7ECFEA34AC92538D119C4625E7B3DBB3BB006277F76F9823"
+          }
+        },
+        "mode": 493
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+        "contents": "[Unit]\nDescription=MyApp\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nTimeoutStartSec=0\nExecStartPre=-/bin/podman kill busybox1\nExecStartPre=-/bin/podman rm busybox1\nExecStartPre=/bin/podman pull busybox\nExecStart=/bin/podman run --name busybox1 busybox /bin/sh -c \"trap 'exit 0' INT TERM; while true; do echo Hello World; sleep 1; done\"\n\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "hello.service"
+      }
+    ]
+  }
+}

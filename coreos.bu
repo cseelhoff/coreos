@@ -1,0 +1,39 @@
+variant: fcos
+version: 1.4.0
+passwd:
+  users:
+    - name: admin
+      groups:
+        - docker
+        - wheel
+      ssh_authorized_keys:
+        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQA
+      password_hash: $y$j9T$xP4E93jrWCP37dNfSKGJL/$EYZt/NBmSBjHu9EeaKKVXKnszK0iJsHH/XCbXqdn.9B
+storage:
+  files:
+    - path: /usr/local/bin/docker-compose
+      overwrite: true
+      contents:
+        source: https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64
+        verification:
+          hash: sha512-DBB485B512B885DE15FF92C24D3CA1B0F46D62BF5DBCD166FD286F545652FA673E4988CFD43A708F7ECFEA34AC92538D119C4625E7B3DBB3BB006277F76F9823
+      mode: 0755
+systemd:
+  units:
+    - name: hello.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=MyApp
+        After=network-online.target
+        Wants=network-online.target
+
+        [Service]
+        TimeoutStartSec=0
+        ExecStartPre=-/bin/podman kill busybox1
+        ExecStartPre=-/bin/podman rm busybox1
+        ExecStartPre=/bin/podman pull busybox
+        ExecStart=/bin/podman run --name busybox1 busybox /bin/sh -c "trap 'exit 0' INT TERM; while true; do echo Hello World; sleep 1; done"
+
+        [Install]
+        WantedBy=multi-user.target
