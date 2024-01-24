@@ -3,7 +3,7 @@
 # Portainer details
 PORTAINER_URL="http://localhost:9000"
 USERNAME="admin"
-PASSWORD="53nnp3rWIFI!"
+PASSWORD="password"
 
 # Create JSON payload
 read -r -d '' PAYLOAD <<EOF
