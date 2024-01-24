@@ -7,7 +7,7 @@ passwd:
         - docker
         - wheel
       ssh_authorized_keys:
-        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQA
+        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC3w55av3xm6C52mBbF0dkK+lpE/UwpWWETJmd5qdZVRTA74I+DZDZ0fx1RFl5zyH17tssIJGJT+cjQICEFQDFs81IpvmMb/dMsVrabXRcwlUEKf7maVWUjN6y+UklgCflh8vcBNbArIYUFcZbGEtIJloTAoWj4/B7e+SpJQtrTtieafFtXN+Ws1iBhsxCkTP0JFbbN5fXlgqKiM64h19iI4FE7PLURNGtDo7mSKDCmJKCChszktE6TVMmTp2iRC8yorbb8g/hx4udaSFeMg+/AhI38dzl1eE8PmECyK4a1xT2i1xyh3vslqD35LUzEsBBf20zn4f3wiVY1VxOGsCSCSL62IwLAWRcjyEIyNkBdicWSdJyxbjEmf5BL1ZINsUCyiIctMHZxar7vf+Jd6eYuN+zqu+8P/apeikAB0I6AtyOQzj5ktiuX++jUdyjog9Js+taA9ZoDGhQ9Lo5D2FFQ3a/mkuh7Z6SWhVz19Y85gXXxVwIhQOrLCcRWt5lrcD+ASNb3enKL1xRqonuKeTEPqdnvApGCkf4fgGisvz+k1iG5HDkmJd+pEAMYjf86nH4pCSPyhvj3iu/8DcESUi47jzq5G7SHU0VlXVbkp98wmI1OG0ns8zW7a+NWCOD2f6Rl9SpGW3K9ne+yqUrh99ZBs5P0vngWZaNnQIHA+HjwYQ==
       password_hash: $y$j9T$xP4E93jrWCP37dNfSKGJL/$EYZt/NBmSBjHu9EeaKKVXKnszK0iJsHH/XCbXqdn.9B
 storage:
   files:
@@ -18,11 +18,37 @@ storage:
         verification:
           hash: sha512-DBB485B512B885DE15FF92C24D3CA1B0F46D62BF5DBCD166FD286F545652FA673E4988CFD43A708F7ECFEA34AC92538D119C4625E7B3DBB3BB006277F76F9823
       mode: 0755
+    - path: /opt/openldap/docker-compose.yml
+      mode: 0644
+      contents:
+        local: openldap/docker-compose.yml
 systemd:
   units:
+# add vmware-tools
+    - name: open-vm-tools.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Open VM Tools
+        After=network-online.target
+        Wants=network-online.target
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        TimeoutStartSec=0
+        ExecStartPre=-/usr/bin/docker stop %n
+        ExecStartPre=-/usr/bin/docker rm %n
+        ExecStartPre=/usr/bin/docker pull immutablecode/open-vm-tools:1.0.0
+        ExecStart=/usr/bin/docker run -e SYSTEMD_IGNORE_CHROOT=1 -v  /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup -v /run/systemd:/run/systemd --pid=host --net=host --ipc=host --uts=host --rm  --privileged --name open-vm-tools immutablecode/open-vm-tools:1.0.0
+        ExecStop=/usr/bin/docker stop -t 15 %n
+
+        [Install]
+        WantedBy=multi-user.target
+# add portainer service
     - name: docker.portainer.service
       enabled: true
-      contents: |-        
+      contents: |-
         [Unit]
         Description=Portainer Admin Container
         After=docker.service

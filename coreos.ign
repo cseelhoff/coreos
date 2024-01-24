@@ -12,7 +12,7 @@
         "name": "admin",
         "passwordHash": "$y$j9T$xP4E93jrWCP37dNfSKGJL/$EYZt/NBmSBjHu9EeaKKVXKnszK0iJsHH/XCbXqdn.9B",
         "sshAuthorizedKeys": [
-          "ssh-rsa AAAAB3NzaC1yc2EAAAADAQA"
+          "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC3w55av3xm6C52mBbF0dkK+lpE/UwpWWETJmd5qdZVRTA74I+DZDZ0fx1RFl5zyH17tssIJGJT+cjQICEFQDFs81IpvmMb/dMsVrabXRcwlUEKf7maVWUjN6y+UklgCflh8vcBNbArIYUFcZbGEtIJloTAoWj4/B7e+SpJQtrTtieafFtXN+Ws1iBhsxCkTP0JFbbN5fXlgqKiM64h19iI4FE7PLURNGtDo7mSKDCmJKCChszktE6TVMmTp2iRC8yorbb8g/hx4udaSFeMg+/AhI38dzl1eE8PmECyK4a1xT2i1xyh3vslqD35LUzEsBBf20zn4f3wiVY1VxOGsCSCSL62IwLAWRcjyEIyNkBdicWSdJyxbjEmf5BL1ZINsUCyiIctMHZxar7vf+Jd6eYuN+zqu+8P/apeikAB0I6AtyOQzj5ktiuX++jUdyjog9Js+taA9ZoDGhQ9Lo5D2FFQ3a/mkuh7Z6SWhVz19Y85gXXxVwIhQOrLCcRWt5lrcD+ASNb3enKL1xRqonuKeTEPqdnvApGCkf4fgGisvz+k1iG5HDkmJd+pEAMYjf86nH4pCSPyhvj3iu/8DcESUi47jzq5G7SHU0VlXVbkp98wmI1OG0ns8zW7a+NWCOD2f6Rl9SpGW3K9ne+yqUrh99ZBs5P0vngWZaNnQIHA+HjwYQ=="
         ]
       }
     ]
@@ -29,13 +29,26 @@
           }
         },
         "mode": 493
+      },
+      {
+        "path": "/opt/openldap/docker-compose.yml",
+        "contents": {
+          "compression": "gzip",
+          "source": "data:;base64,H4sIAAAAAAAC/3SUQXOCOhDH7/0UGS49FaxO1eaW4iKZIjAEfe0pk0LaMk8CQ6jz+u3fBKkVpZ5w/z/YzW7+e5CNLiqF0e309kbL5lBkUuMbhKpaqn0uavOMUFGKD4lRpYv/CuGctHv7wZ50QFapVhRKNlyJ0pA90olSHYqmUqVU7fFzCAUrEvMgWvMAdhBgZE0f5ta5FiVrElJGUhqFGFn3iwVy43SArKINoUb80vb9YpHVrZ1V5QB5Igz4yjCDMFltaMhjwtg/UbLCyBJ5WagB4kahR9fnTFap9+JjACVAVlEYvPItgwQj613stRwSnjudTRZPlHHm+rAho9QTcZ8hNEnK/G2gpAHDyGqbL3kZ5m6Sco8GEJINYGSZbttZ015xz/B6xf0rv6+4lc9jkpDNOZx/1qIRpV3L8jo/uSwhE6MFQOhFiQujJ+8+RGMfEs62NDUQA3ebwPRhju92kLA7xoKZPbl6awcJ9V65G1AIU1OqLIXKL8YTB9T9uUKD5M8AMYcXylIarvthjw8QNtEOfq4D8VJTKaTbeGwsjAXchyCGhMcJePSl7/cRattvjMw73T/d5oXixidnwUO1/yqPBjS/O+QcROPsizfnZKYuKtusizh6L+rczn+VkxGd3s1HxBFay1Y7mWxa7XR4XTXtWSZrtnzEs+Wj9RuZz+Z4Put9mVelKNTR3WOO+6x026s/R64/a/PYmWtsjwz0if34xy45x/7aJ7Efmwkcjd3Nwo9Yygb9v6D8NI2H5rrsyHKynOBlf/VyWUuVa16pX+K05f4PAAD//8F0fUZHBQAA"
+        },
+        "mode": 420
       }
     ]
   },
   "systemd": {
     "units": [
       {
-        "contents": "[Unit]        \nDescription=Portainer Admin Container\nAfter=docker.service        \nRequires=docker.service network.target network-online.target\n\n[Service]        \nType=oneshot        \nRemainAfterExit=yes        \nTimeoutStartSec=0        \nExecStartPre=-/usr/bin/docker stop %n        \nExecStartPre=-/usr/bin/docker rm %n        \nExecStartPre=/usr/bin/docker pull portainer/portainer-ce        \nExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data        \n\nExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
+        "contents": "[Unit]\nDescription=Open VM Tools\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nTimeoutStartSec=0\nExecStartPre=-/usr/bin/docker stop %n\nExecStartPre=-/usr/bin/docker rm %n\nExecStartPre=/usr/bin/docker pull immutablecode/open-vm-tools:1.0.0\nExecStart=/usr/bin/docker run -e SYSTEMD_IGNORE_CHROOT=1 -v  /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup -v /run/systemd:/run/systemd --pid=host --net=host --ipc=host --uts=host --rm  --privileged --name open-vm-tools immutablecode/open-vm-tools:1.0.0\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "open-vm-tools.service"
+      },
+      {
+        "contents": "[Unit]\nDescription=Portainer Admin Container\nAfter=docker.service\nRequires=docker.service network.target network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nTimeoutStartSec=0\nExecStartPre=-/usr/bin/docker stop %n\nExecStartPre=-/usr/bin/docker rm %n\nExecStartPre=/usr/bin/docker pull portainer/portainer-ce\nExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data\nExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
         "enabled": true,
         "name": "docker.portainer.service"
       }
