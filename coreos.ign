@@ -23,7 +23,7 @@
         "overwrite": true,
         "path": "/usr/local/bin/docker-compose",
         "contents": {
-          "source": "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose",
+          "source": "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64",
           "verification": {
             "hash": "sha512-DBB485B512B885DE15FF92C24D3CA1B0F46D62BF5DBCD166FD286F545652FA673E4988CFD43A708F7ECFEA34AC92538D119C4625E7B3DBB3BB006277F76F9823"
           }
@@ -35,9 +35,9 @@
   "systemd": {
     "units": [
       {
-        "contents": "[Unit]\nDescription=MyApp\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nTimeoutStartSec=0\nExecStartPre=-/bin/podman kill busybox1\nExecStartPre=-/bin/podman rm busybox1\nExecStartPre=/bin/podman pull busybox\nExecStart=/bin/podman run --name busybox1 busybox /bin/sh -c \"trap 'exit 0' INT TERM; while true; do echo Hello World; sleep 1; done\"\n\n[Install]\nWantedBy=multi-user.target\n",
+        "contents": "[Unit]        \nDescription=Portainer Admin Container\nAfter=docker.service        \nRequires=docker.service network.target network-online.target\n\n[Service]        \nType=oneshot        \nRemainAfterExit=yes        \nTimeoutStartSec=0        \nExecStartPre=-/usr/bin/docker stop %n        \nExecStartPre=-/usr/bin/docker rm %n        \nExecStartPre=/usr/bin/docker pull portainer/portainer-ce        \nExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data        \n\nExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
         "enabled": true,
-        "name": "hello.service"
+        "name": "docker.portainer.service"
       }
     ]
   }

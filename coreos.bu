@@ -20,20 +20,25 @@ storage:
       mode: 0755
 systemd:
   units:
-    - name: hello.service
+    - name: docker.portainer.service
       enabled: true
-      contents: |
-        [Unit]
-        Description=MyApp
-        After=network-online.target
-        Wants=network-online.target
+      contents: |-        
+        [Unit]        
+        Description=Portainer Admin Container
+        After=docker.service        
+        Requires=docker.service network.target network-online.target
+        
+        [Service]        
+        Type=oneshot        
+        RemainAfterExit=yes        
+        TimeoutStartSec=0        
+        ExecStartPre=-/usr/bin/docker stop %n        
+        ExecStartPre=-/usr/bin/docker rm %n        
+        ExecStartPre=/usr/bin/docker pull portainer/portainer-ce        
+        ExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data        
 
-        [Service]
-        TimeoutStartSec=0
-        ExecStartPre=-/bin/podman kill busybox1
-        ExecStartPre=-/bin/podman rm busybox1
-        ExecStartPre=/bin/podman pull busybox
-        ExecStart=/bin/podman run --name busybox1 busybox /bin/sh -c "trap 'exit 0' INT TERM; while true; do echo Hello World; sleep 1; done"
-
+        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce
+        ExecStop=/usr/bin/docker stop -t 15 %n
+        
         [Install]
         WantedBy=multi-user.target
