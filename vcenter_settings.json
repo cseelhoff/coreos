@@ -1,0 +1,11 @@
+{
+    "vcenter": "vsphere2.us.177cpt.com",
+    "username": "administrator@vsphere.local",
+    "password": "",
+    "host": "10.0.1.31",
+    "datastore": "esxi4_datastore",
+    "vm_name": "coreos",
+    "library": "library",
+    "ova_url": "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova",
+    "ova_name": "fedora-coreos-39.20240104.3.0-vmware.x86_64"
+}
