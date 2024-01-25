@@ -12,7 +12,7 @@
         "name": "admin",
         "passwordHash": "$y$j9T$xP4E93jrWCP37dNfSKGJL/$EYZt/NBmSBjHu9EeaKKVXKnszK0iJsHH/XCbXqdn.9B",
         "sshAuthorizedKeys": [
-          "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCn+0fBIIy4lZSEY9FWNBbRK+6u9eA+S2CSXyEMj6jpWRWIQgYd6Nx9ODwjuCuJPVaqKSQfpRDd3/XKExileNqJ6bge58bdJdqAbOWdRBS+3q9uHE+B+F+nSjAFTRUlvz9ltDLViNTURxCVwyJ6N750YQozyNspiZ+VlUYIoT5wc6Ov/xTmVQinJPYPv0ycOThkGqj8xo9Zdb6X+qhyV03V3+09qnrC5RWCaV1Y5L+E3QkA3SnWs6St+x5ZJzvzPMRcQ/mNIT+JTeqmSs7E5wkKAG/0ghH4TD0pm9rNwaVexYSLIF2/JmBg1tf5iI5JZkCuZFrG4xT0pDiMOLJO+pfl5Qv/IgTK+yW2rZEDiy/R3xGmJgDLfUcug+d+YW+MBG0DNc0wzfta7TZzx70VZblBQK/fP/S3jm57cVftYp8Ovm+B6Cj7Lpmz6Qv4uLtA6G+wWrqqbs0Fa0PM/yZK6ehRv3sVDOoLN/ie+d+f1MmugjUVtNBWgwiEsqrRpPJvIfRU+YsrUHmg5qnKSLxpL8oVgfhITZ4Ii/TttvwCcnWOjyfsV+DJRl4OE0H6uSBk0TifdZM29uaJylQ4Y5KMoaF7Y0S2R2wVDTcaN3apI15k+axF6Q/+hPLqrc96CDC628kMwGeXEKP1gRHZzh5VOpZkqB0rgHxXOsen6U2xkOZt5w== root@68e1a3b53fc4 root@68e1a3b53fc4 root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e"
+          "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCn+0fBIIy4lZSEY9FWNBbRK+6u9eA+S2CSXyEMj6jpWRWIQgYd6Nx9ODwjuCuJPVaqKSQfpRDd3/XKExileNqJ6bge58bdJdqAbOWdRBS+3q9uHE+B+F+nSjAFTRUlvz9ltDLViNTURxCVwyJ6N750YQozyNspiZ+VlUYIoT5wc6Ov/xTmVQinJPYPv0ycOThkGqj8xo9Zdb6X+qhyV03V3+09qnrC5RWCaV1Y5L+E3QkA3SnWs6St+x5ZJzvzPMRcQ/mNIT+JTeqmSs7E5wkKAG/0ghH4TD0pm9rNwaVexYSLIF2/JmBg1tf5iI5JZkCuZFrG4xT0pDiMOLJO+pfl5Qv/IgTK+yW2rZEDiy/R3xGmJgDLfUcug+d+YW+MBG0DNc0wzfta7TZzx70VZblBQK/fP/S3jm57cVftYp8Ovm+B6Cj7Lpmz6Qv4uLtA6G+wWrqqbs0Fa0PM/yZK6ehRv3sVDOoLN/ie+d+f1MmugjUVtNBWgwiEsqrRpPJvIfRU+YsrUHmg5qnKSLxpL8oVgfhITZ4Ii/TttvwCcnWOjyfsV+DJRl4OE0H6uSBk0TifdZM29uaJylQ4Y5KMoaF7Y0S2R2wVDTcaN3apI15k+axF6Q/+hPLqrc96CDC628kMwGeXEKP1gRHZzh5VOpZkqB0rgHxXOsen6U2xkOZt5w== root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e"
         ]
       }
     ]
@@ -42,7 +42,7 @@
         "path": "/opt/portainer/deploy-portainer.sh",
         "contents": {
           "compression": "gzip",
-          "source": "data:;base64,H4sIAAAAAAAC/4yRX2+TUBjG70n4Dq+vJKyZFEwWjTXnAlvmyBggf5xmWZrTchpOAweEg3VTv7sRSmyrMbsknCfP7/e8z5+ZKy7MFW1zVQmDKLFd34mWaeQRzKWsZ6ZZVGta5FUrZ28sy0JVSWMn8u0bhyDNSi7wMBjacXwbRAuCqfX1skhLFm7qD4vzx5X3yrr45n7kJT2/kbe7jF9w1l4/dNnrHUFVsdPkahnan73AXhD9O6YtawQtGc4AddTGTtTxBQCGtG13VZPt//7djzr+1FUlcuIw8GOHaGfrrinAaMH4BGEQJ2BcAc4rIZmQRvJQsxnQui74mkpeCXPbVgLByAC1QzIE7Wgkk9bcpJ3MJ3uDJLh2fKKdsXVegTbWww/YfgGjgel2Jyeq4viLMHD95FB4lO3n7uHHV/Fwjn80M5HVFReyRVXxgrntLceMuzhWfu8MxnYn86rhj73lDN4x2rAGtD/s+PRhTi0QtCPkwVqf3ln3UzfTJ6rCN3AHqJ2iIhACKLqiQLh/CzJnQlUA/m/UH/Gk8KmGl4A+LRkZtu6/nf2U84b1yd/m5CWODgP/hqvKrwAAAP//Z0Ta6jIDAAA="
+          "source": "data:;base64,H4sIAAAAAAAC/4yRUY+TQBSF30n4D9crCbtZKTW+WMw8sGVqGysg0F03m00zW2YDDR0oM2xj1f9uhBLbasw+EubkfN+5r1/Zj7mwH5nMdC0MosSd+TRaLqI5wUypyrHtolyxIiulckbD4RB1bRHTyHc/U4Is3eQCj4OhG8e3QeQR/PK+eLe/uR2N5YburqbCl6OdPbl63hZZNHluttdJsL/xonQ9vCOoa+4imS5D924euB4xv+NC8lqwDUcH0ESj70QT3wBgyKTclXV6+Pt3P5r409S1iMZh4MeUGBerpi7AkmB9hTCIE7CmgONSKC6UlXyruAOsqop8xVReCnstS4FgpYDGMRmCcTKSzarcZo3KLg8GSfCJ+sS44KusBKOvhx+w3oJVw2C9U5e6Rn0vDGZ+cizcy7Zzt/D9q7g7xz+auUirMhdKoq7Ng7E7X/aZmXeq/JF2xm6jsrLO962lA9ec1bwG4w87vnyYcwsE4wS5szYH98OHwSw1L3Utf4J7QOMcFYEQQNEUBcLDB1AZF7oG8H+j9ohnhS81nAD6bMNJt3X7TQ9TjmveJn+bk7fYO3T8T7mu/QoAAP//Q4lfFTIDAAA="
         },
         "mode": 493
       }
@@ -56,7 +56,7 @@
         "name": "open-vm-tools.service"
       },
       {
-        "contents": "[Unit]\nDescription=Portainer Admin Container\nAfter=docker.service\nRequires=docker.service network.target network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nTimeoutStartSec=0\nExecStartPre=-/usr/bin/docker stop %n\nExecStartPre=-/usr/bin/docker rm %n\nExecStartPre=/usr/bin/docker pull portainer/portainer-ce\nExecStart=-/usr/bin/mkdir -p /var/portainer/data\nExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$iWcRAtlmLaSRezVg.4rww.3O7Fx6UIcELQ2BP02QrRkS6af20cPau'\nExecStart=/opt/portainer/deploy-portainer.sh\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
+        "contents": "[Unit]\nDescription=Portainer Admin Container\nAfter=docker.service\nRequires=docker.service network.target network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nTimeoutStartSec=0\nExecStartPre=-/usr/bin/docker stop %n\nExecStartPre=-/usr/bin/docker rm %n\nExecStartPre=/usr/bin/docker pull portainer/portainer-ce\nExecStart=-/usr/bin/mkdir -p /var/portainer/data\nExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$SfY57fMhgFNxohM.jtkay.6egXOhNoKMqUvREFcAX48UqxMhN1bl.'\nExecStart=/opt/portainer/deploy-portainer.sh\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
         "enabled": true,
         "name": "docker.portainer.service"
       }

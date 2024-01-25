@@ -1,10 +1,11 @@
 {
-    "vcenter": "vsphere2.us.177cpt.com",
-    "username": "Administrator@VSPHERE.LOCAL",
-    "host": "10.0.1.31",
-    "datastore": "esxi4_datastore",
-    "vm_name": "coreos",
-    "library": "library",
+    "GOVC_URL": "vsphere2.us.177cpt.com",
+    "GOVC_USERNAME": "Administrator@VSPHERE.LOCAL",
+    "GOVC_HOST": "10.0.1.31",
+    "GOVC_DATASTORE": "esxi4_datastore",
+    "GOVC_VM": "coreos",
+    "GOVC_NETWORK": "Internal Management",
+    "library_name": "library",
     "ova_url": "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova",
     "ova_name": "fedora-coreos-39.20240104.3.0-vmware.x86_64"
 }

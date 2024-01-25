@@ -1,7 +1,7 @@
 #!/bin/bash
 PORTAINER_URL="http://localhost:9000"
 USERNAME="admin"
-PORTAINER_PASSWORD="U0vFlUmePfpQD+zbL604xIVima+MtWwdi4iesKyud7w="
+PORTAINER_PASSWORD="Q8l3zVW9CsmEw+HnNs9w/F+vqlhRFvuqBTOzVDRdj0Y="
 AUTH_PAYLOAD='{"Username": "'"$USERNAME"'",  "Password": "'"$PORTAINER_PASSWORD"'"}'
 RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$AUTH_PAYLOAD" $PORTAINER_URL/api/auth)
 AUTH_TOKEN=$(echo $RESPONSE | jq -r .jwt)
