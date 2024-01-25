@@ -7,7 +7,7 @@ passwd:
         - docker
         - wheel
       ssh_authorized_keys:
-        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC3w55av3xm6C52mBbF0dkK+lpE/UwpWWETJmd5qdZVRTA74I+DZDZ0fx1RFl5zyH17tssIJGJT+cjQICEFQDFs81IpvmMb/dMsVrabXRcwlUEKf7maVWUjN6y+UklgCflh8vcBNbArIYUFcZbGEtIJloTAoWj4/B7e+SpJQtrTtieafFtXN+Ws1iBhsxCkTP0JFbbN5fXlgqKiM64h19iI4FE7PLURNGtDo7mSKDCmJKCChszktE6TVMmTp2iRC8yorbb8g/hx4udaSFeMg+/AhI38dzl1eE8PmECyK4a1xT2i1xyh3vslqD35LUzEsBBf20zn4f3wiVY1VxOGsCSCSL62IwLAWRcjyEIyNkBdicWSdJyxbjEmf5BL1ZINsUCyiIctMHZxar7vf+Jd6eYuN+zqu+8P/apeikAB0I6AtyOQzj5ktiuX++jUdyjog9Js+taA9ZoDGhQ9Lo5D2FFQ3a/mkuh7Z6SWhVz19Y85gXXxVwIhQOrLCcRWt5lrcD+ASNb3enKL1xRqonuKeTEPqdnvApGCkf4fgGisvz+k1iG5HDkmJd+pEAMYjf86nH4pCSPyhvj3iu/8DcESUi47jzq5G7SHU0VlXVbkp98wmI1OG0ns8zW7a+NWCOD2f6Rl9SpGW3K9ne+yqUrh99ZBs5P0vngWZaNnQIHA+HjwYQ==
+        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDg/+vkiuEzsq1ZB6cjUrnmJ833mEVuRLdQDPrE3yHUteZlyPH1JNDSyB5zxnDJsk1g82vifhONKchnVzYa6h38frN1r6xLYArUYr0Wckn0Hwh3L3GleAfiaKTR+r5uQdkRB4stSuht+Txx5VxDZ9bhD/JfKjQxzv+GyoVB5MCMkjLbGXWtOEoMh21vq6VdGpkA4FhBH+aF9dK99EC1VkYrgfP88pOR4cPkEa+OhDFh/YP+p3wfd/36qY0MuazM9HTtYC5M1h1uuhyDNjy0tL5ZTzTrLcK4BKBfekKiMcZT4oZpFqG2WeDSGHZ3DTt2ioxJPunSt3XKCm4vA8EB5uqrFKU9dQ9hJLAZihaRbnOJbEByZKMUBT8EhiMNIknQsnYQxYFd+kbikOJN/OIfnsUx12Pzu/y+LC27gy1+R2BWdif3rSjzwnkINflzozxdUy4otG6NS+dYSJIH1cHABPHYs3uiZ2Q1RnxVpvAz+VN8UCPqXyuBy1WN9pS9cP2ZN3dyLwHvu8Vz/X7Pu1lIU4vgX4ixnXQ/jRRzweaJKL6V79qJKjlJTCruG4n5j0mSagmqxLe8791eTQ6yp+ZiHA+yKMU5GR1GwCOJg2U8z0QkWBSWvlmQcB5bwPLaV4ifJnZNGasD6d8V0pdfjvvyoYnTS7o6zDHxPvvI7/cjjiYjdw== root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e
       password_hash: $y$j9T$xP4E93jrWCP37dNfSKGJL/$EYZt/NBmSBjHu9EeaKKVXKnszK0iJsHH/XCbXqdn.9B
 storage:
   files:
@@ -18,7 +18,14 @@ storage:
         verification:
           hash: sha512-DBB485B512B885DE15FF92C24D3CA1B0F46D62BF5DBCD166FD286F545652FA673E4988CFD43A708F7ECFEA34AC92538D119C4625E7B3DBB3BB006277F76F9823
       mode: 0755
-
+    - path: /opt/openldap/docker-compose.yml
+      mode: 0644
+      contents:
+        local: openldap/docker-compose.yml
+    - path: /opt/portainer/deploy-portainer.sh
+      mode: 0755
+      contents:
+        local: portainer/deploy-portainer.sh
     # - path: /tmp/backups/portainer.tar.gz
     #   contents:
     #     source: http://restore.us.177cpt.com/portainer.tar.gz
@@ -67,20 +74,20 @@ systemd:
         [Install]
         WantedBy=multi-user.target
 
-    - name: restore-backups.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Restore Backups
-        After=network-online.target
-        Wants=network-online.target
+    # - name: restore-backups.service
+    #   enabled: true
+    #   contents: |
+    #     [Unit]
+    #     Description=Restore Backups
+    #     After=network-online.target
+    #     Wants=network-online.target
 
-        [Service]
-        Type=oneshot
-        ExecStart=for file in /tmp/backups/*.tar.gz; do tar -xzf "$file" -C /; done
+    #     [Service]
+    #     Type=oneshot
+    #     ExecStart=for file in /tmp/backups/*.tar.gz; do tar -xzf "$file" -C /; done
 
-        [Install]
-        WantedBy=multi-user.target
+    #     [Install]
+    #     WantedBy=multi-user.target
 
 # add portainer service
 #docker run --rm httpd:2.4-alpine htpasswd -nbB admin 'superpassword' | cut -d ":" -f 2
@@ -101,7 +108,8 @@ systemd:
         ExecStartPre=-/usr/bin/docker rm %n
         ExecStartPre=/usr/bin/docker pull portainer/portainer-ce
         ExecStart=-/usr/bin/mkdir -p /var/portainer/data
-        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$6km35/UTQikNs7wiDvg6nOcntii6w.KebBcysP39ZRwKBfY5gUzNC'
+        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$YvFzzjuwaBK6LCcL9B6s8ebOA4DsIl6R0w7RY3s3tVCjW0ByKCdCq'
+        ExecStart=/opt/portainer/deploy-portainer.sh
         ExecStop=/usr/bin/docker stop -t 15 %n
         
         [Install]
