@@ -42,6 +42,9 @@ govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
 govc about -u $CONNECTION
 govc session.login -u $CONNECTION
 
+# why this fixes things, we don't know...
+govc library.ls -u $CONNECTION
+
 # use govc library.ls -json to check if the library exists
 if govc library.ls -json | jq -r '.[].name' | grep -q $LIBRARY; then
   echo "Library $LIBRARY already exists"
