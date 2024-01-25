@@ -5,9 +5,10 @@ if [ -z ${GOVC_PASSWORD+x} ]; then
 fi
 
 export GOVC_INSECURE=true
-export CONNECTION=$(jq -r '.username + ":" + .password + "@" + .vcenter' vcenter_settings.json)
-export OVA_URL=$(jq -r '.ova_url' vcenter_settings.json)
 export GOVC_USERNAME=$(jq -r '.username' vcenter_settings.json)
+export GOVC_VCENTER=$(jq -r '.vcenter' vcenter_settings.json)
+export CONNECTION=$(echo $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_VCENTER)
+export OVA_URL=$(jq -r '.ova_url' vcenter_settings.json)
 export GOVC_URL=$(jq -r '.vcenter' vcenter_settings.json)
 export LIBRARY=$(jq -r '.library' vcenter_settings.json)
 export DATASTORE=$(jq -r '.datastore' vcenter_settings.json)

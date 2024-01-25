@@ -26,10 +26,6 @@ storage:
       mode: 0755
       contents:
         local: portainer/deploy-portainer.sh
-    - path: /opt/awx/
-      mode: 0755
-      contents:
-        local: awx/
     # - path: /tmp/backups/portainer.tar.gz
     #   contents:
     #     source: http://restore.us.177cpt.com/portainer.tar.gz
@@ -103,7 +99,7 @@ systemd:
         Description=Portainer Admin Container
         After=docker.service
         Requires=docker.service network.target network-online.target
-         
+        
         [Service]
         Type=oneshot
         RemainAfterExit=yes
@@ -118,29 +114,3 @@ systemd:
         
         [Install]
         WantedBy=multi-user.target
-
-    - name: docker.portainer.service
-      enabled: true
-      contents: |-        
-        [Unit]
-        Description=Portainer Admin Container
-        After=docker.service
-        Requires=docker.service network.target network-online.target
-         
-        [Service]
-        Type=oneshot
-        RemainAfterExit=yes
-        TimeoutStartSec=0
-        ExecStartPre=-/usr/bin/docker stop %n
-        ExecStartPre=-/usr/bin/docker rm %n
-        ExecStartPre=/usr/bin/docker pull portainer/portainer-ce
-        ExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data
-        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce
-        ExecStop=/usr/bin/docker stop -t 15 %n
-        
-        [Install]
-        WantedBy=multi-user.target
-        
-        
-
-
