@@ -6,15 +6,14 @@ fi
 
 export GOVC_INSECURE=true
 export GOVC_USERNAME=$(jq -r '.username' vcenter_settings.json)
-export GOVC_VCENTER=$(jq -r '.vcenter' vcenter_settings.json)
-export CONNECTION=$(echo $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_VCENTER)
-export OVA_URL=$(jq -r '.ova_url' vcenter_settings.json)
 export GOVC_URL=$(jq -r '.vcenter' vcenter_settings.json)
+export CONNECTION=$(echo $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL)
+export OVA_URL=$(jq -r '.ova_url' vcenter_settings.json)
 export LIBRARY=$(jq -r '.library' vcenter_settings.json)
-export DATASTORE=$(jq -r '.datastore' vcenter_settings.json)
+export GOVC_DATASTORE=$(jq -r '.datastore' vcenter_settings.json)
 export VM_NAME=$(jq -r '.vm_name' vcenter_settings.json)
 export OVA_NAME=$(jq -r '.ova_name' vcenter_settings.json)
-export HOST=$(jq -r '.host' vcenter_settings.json)
+export GOVC_HOST=$(jq -r '.host' vcenter_settings.json)
 
 # if ~/.ssh/id_rsa does not exist, create it
 if [ ! -f ~/.ssh/id_rsa ]; then
@@ -37,6 +36,10 @@ ESCAPED_PORTAINER_BCRYPT=$(echo "$PORTAINER_BCRYPT" | sed -e 's/\$/\$\$/g')
 sed -i "s/--admin-password '[^']*/--admin-password '$ESCAPED_PORTAINER_BCRYPT/g" ./coreos.bu
 
 butane --files-dir ./ --pretty --strict coreos.bu --output coreos.ign
+
+export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
+govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
+govc about -u $CONNECTION
 govc session.login -u $CONNECTION
 
 # use govc library.ls -json to check if the library exists
@@ -44,7 +47,7 @@ if govc library.ls -json | jq -r '.[].name' | grep -q $LIBRARY; then
   echo "Library $LIBRARY already exists"
 else
   echo "Creating library $LIBRARY"
-  govc library.create -ds=$DATASTORE $LIBRARY
+  govc library.create -ds=$GOVC_DATASTORE $LIBRARY
 fi
 
 # check if the OVA already exists in the library
@@ -55,8 +58,8 @@ else
   govc library.import $LIBRARY $OVA_URL
 fi
 
-govc library.deploy -host=$HOST /$LIBRARY/$OVA_NAME $VM_NAME
-#govc vm.create -m 4096 -c 2 -g coreos -net.adapter vmxnet3 -net="VM Network" -disk.controller pvscsi -disk.backing datastore1 -on=false coreos
+govc library.deploy -host=$GOVC_HOST /$LIBRARY/$OVA_NAME $VM_NAME
+#govc vm.create -m 4096 -c 2 -g coreos -net.adapter vmxnet3 -net="VM Network" -disk.controller pvscsi -disk.backing GOVC_DATASTORE1 -on=false coreos
 govc vm.change -vm $VM_NAME -e="guestinfo.ignition.config.data=$(cat coreos.ign | base64 -w0)"
 govc vm.change -vm $VM_NAME -e="guestinfo.ignition.config.data.encoding=base64"
 govc vm.power -on $VM_NAME

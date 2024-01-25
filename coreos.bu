@@ -7,7 +7,7 @@ passwd:
         - docker
         - wheel
       ssh_authorized_keys:
-        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDg/+vkiuEzsq1ZB6cjUrnmJ833mEVuRLdQDPrE3yHUteZlyPH1JNDSyB5zxnDJsk1g82vifhONKchnVzYa6h38frN1r6xLYArUYr0Wckn0Hwh3L3GleAfiaKTR+r5uQdkRB4stSuht+Txx5VxDZ9bhD/JfKjQxzv+GyoVB5MCMkjLbGXWtOEoMh21vq6VdGpkA4FhBH+aF9dK99EC1VkYrgfP88pOR4cPkEa+OhDFh/YP+p3wfd/36qY0MuazM9HTtYC5M1h1uuhyDNjy0tL5ZTzTrLcK4BKBfekKiMcZT4oZpFqG2WeDSGHZ3DTt2ioxJPunSt3XKCm4vA8EB5uqrFKU9dQ9hJLAZihaRbnOJbEByZKMUBT8EhiMNIknQsnYQxYFd+kbikOJN/OIfnsUx12Pzu/y+LC27gy1+R2BWdif3rSjzwnkINflzozxdUy4otG6NS+dYSJIH1cHABPHYs3uiZ2Q1RnxVpvAz+VN8UCPqXyuBy1WN9pS9cP2ZN3dyLwHvu8Vz/X7Pu1lIU4vgX4ixnXQ/jRRzweaJKL6V79qJKjlJTCruG4n5j0mSagmqxLe8791eTQ6yp+ZiHA+yKMU5GR1GwCOJg2U8z0QkWBSWvlmQcB5bwPLaV4ifJnZNGasD6d8V0pdfjvvyoYnTS7o6zDHxPvvI7/cjjiYjdw== root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e
+        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCn+0fBIIy4lZSEY9FWNBbRK+6u9eA+S2CSXyEMj6jpWRWIQgYd6Nx9ODwjuCuJPVaqKSQfpRDd3/XKExileNqJ6bge58bdJdqAbOWdRBS+3q9uHE+B+F+nSjAFTRUlvz9ltDLViNTURxCVwyJ6N750YQozyNspiZ+VlUYIoT5wc6Ov/xTmVQinJPYPv0ycOThkGqj8xo9Zdb6X+qhyV03V3+09qnrC5RWCaV1Y5L+E3QkA3SnWs6St+x5ZJzvzPMRcQ/mNIT+JTeqmSs7E5wkKAG/0ghH4TD0pm9rNwaVexYSLIF2/JmBg1tf5iI5JZkCuZFrG4xT0pDiMOLJO+pfl5Qv/IgTK+yW2rZEDiy/R3xGmJgDLfUcug+d+YW+MBG0DNc0wzfta7TZzx70VZblBQK/fP/S3jm57cVftYp8Ovm+B6Cj7Lpmz6Qv4uLtA6G+wWrqqbs0Fa0PM/yZK6ehRv3sVDOoLN/ie+d+f1MmugjUVtNBWgwiEsqrRpPJvIfRU+YsrUHmg5qnKSLxpL8oVgfhITZ4Ii/TttvwCcnWOjyfsV+DJRl4OE0H6uSBk0TifdZM29uaJylQ4Y5KMoaF7Y0S2R2wVDTcaN3apI15k+axF6Q/+hPLqrc96CDC628kMwGeXEKP1gRHZzh5VOpZkqB0rgHxXOsen6U2xkOZt5w== root@68e1a3b53fc4 root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e
       password_hash: $y$j9T$xP4E93jrWCP37dNfSKGJL/$EYZt/NBmSBjHu9EeaKKVXKnszK0iJsHH/XCbXqdn.9B
 storage:
   files:
@@ -108,7 +108,7 @@ systemd:
         ExecStartPre=-/usr/bin/docker rm %n
         ExecStartPre=/usr/bin/docker pull portainer/portainer-ce
         ExecStart=-/usr/bin/mkdir -p /var/portainer/data
-        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$YvFzzjuwaBK6LCcL9B6s8ebOA4DsIl6R0w7RY3s3tVCjW0ByKCdCq'
+        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$GkD.toaR93B5WoFppVFSbOVwWzLgTqPn8huV6XPYK05ZFjyWz3k6a'
         ExecStart=/opt/portainer/deploy-portainer.sh
         ExecStop=/usr/bin/docker stop -t 15 %n
         

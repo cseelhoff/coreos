@@ -1,6 +1,6 @@
 {
     "vcenter": "vsphere2.us.177cpt.com",
-    "username": "administrator@vsphere.local",
+    "username": "Administrator@VSPHERE.LOCAL",
     "host": "10.0.1.31",
     "datastore": "esxi4_datastore",
     "vm_name": "coreos",
