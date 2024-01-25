@@ -17,10 +17,10 @@ OVA_NAME=$(jq -r '.ova_name' vcenter_settings.json)
 LIBRARY_NAME=$(jq -r '.library_name' vcenter_settings.json)
 CONNECTION_STRING=$(echo $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL)
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
-govc about -u $CONNECTION
+#govc about -u $CONNECTION
 govc session.login -u $CONNECTION
 # why this fixes things, we don't know...
-govc library.ls -u $CONNECTION
+govc library.ls -u $CONNECTION > /dev/null
 
 # if ~/.ssh/id_rsa does not exist, create it
 if [ ! -f ~/.ssh/id_rsa ]; then
@@ -38,10 +38,11 @@ PORTAINER_PASSWORD=$(openssl rand -base64 32)
 # Escape special characters in the password to use in sed
 ESCAPED_PORTAINER_PASSWORD=$(echo "$PORTAINER_PASSWORD" | sed -e 's/[\/&]/\\&/g')
 # Replace the existing password in portainer/deploy-portainer.sh with the new password
-sed -i "s/PORTAINER_PASSWORD=\"[^\"]*/PORTAINER_PASSWORD=\"$ESCAPED_PORTAINER_PASSWORD/g" ./portainer/deploy-portainer.sh
+sed -i "s/PORTAINER_PASSWORD=\"[^\"]*/PORTAINER_PASSWORD=\"$ESCAPED_PORTAINER_PASSWORD/g" ./portainer/deploy-stack.sh
 PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2)
 # replace all of the $ symbols in the bcrypt hash with two consecutive $$ symbols
 ESCAPED_PORTAINER_BCRYPT=$(echo "$PORTAINER_BCRYPT" | sed -e 's/\$/\$\$/g')
+ESCAPED_PORTAINER_BCRYPT=$(echo "$ESCAPED_PORTAINER_BCRYPT" | sed -e 's/[\/&]/\\&/g')
 sed -i "s/--admin-password '[^']*/--admin-password '$ESCAPED_PORTAINER_BCRYPT/g" ./coreos.bu
 
 butane --files-dir ./ --pretty --strict coreos.bu --output coreos.ign
@@ -72,7 +73,12 @@ echo "Waiting for VM to be ready..."
 VM_IP=$(govc vm.ip $VM_NAME)
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i ~/.ssh/id_rsa admin@$VM_IP
 
-pause "Press [Enter] key to continue..."
+# prompt user to press y to delete the VM
+read -p "Press y to delete the VM: " -n 1 -r
+echo
+if [[  $REPLY =~ ^[Yy]$ ]]
+then
 # delete the VM
-govc vm.power -off $VM_NAME
-govc vm.destroy $VM_NAME
+  govc vm.power -off $VM_NAME
+  govc vm.destroy $VM_NAME
+fi
