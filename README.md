@@ -9,3 +9,5 @@ export GOVC_INSECURE=true
 export OVA_URL='ova_url'
 govc library.create -ds=esxi4_datastore library
 govc library.import library https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova
+
+sudo tar -zcf portainer_data.tar.gz /var/portainer_data/
