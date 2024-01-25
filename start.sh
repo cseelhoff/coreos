@@ -36,10 +36,7 @@ govc vm.power -on $VM_NAME
 echo "Waiting for VM to be ready..."
 VM_IP=$(govc vm.ip $VM_NAME)
 #VM_IP="10.0.1.46"
-until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i ~/.ssh/id_rsa admin@$VM_IP; do
-  echo "Waiting for SSH to be ready..."
-  sleep 5
-done
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i ~/.ssh/id_rsa admin@$VM_IP
 
 # delete the VM
 #govc vm.power -off $VM_NAME

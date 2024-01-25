@@ -18,10 +18,31 @@ storage:
         verification:
           hash: sha512-DBB485B512B885DE15FF92C24D3CA1B0F46D62BF5DBCD166FD286F545652FA673E4988CFD43A708F7ECFEA34AC92538D119C4625E7B3DBB3BB006277F76F9823
       mode: 0755
-    - path: /opt/openldap/docker-compose.yml
-      mode: 0644
-      contents:
-        local: openldap/docker-compose.yml
+
+    # - path: /tmp/backups/portainer.tar.gz
+    #   contents:
+    #     source: http://restore.us.177cpt.com/portainer.tar.gz
+
+    # - path: /tmp/backups/openldap.tar.gz
+    #   contents:
+    #     source: http://restore.us.177cpt.com/openldap.tar.gz
+
+    # - path: /tmp/backups/gitea.tar.gz
+    #   contents:
+    #     source: http://restore.us.177cpt.com/gitea.tar.gz
+
+    # - path: /tmp/backups/nexus.tar.gz
+    #   contents:
+    #     source: http://restore.us.177cpt.com/nexus.tar.gz
+
+    # - path: /tmp/backups/awx.tar.gz
+    #   contents:
+    #     source: http://restore.us.177cpt.com/awx.tar.gz
+
+    # - path: /tmp/backups/traefik.tar.gz
+    #   contents:
+    #     source: http://restore.us.177cpt.com/traefik.tar.gz
+
 systemd:
   units:
 # add vmware-tools
@@ -45,7 +66,25 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
+
+    - name: restore-backups.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Restore Backups
+        After=network-online.target
+        Wants=network-online.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=for file in /tmp/backups/*.tar.gz; do tar -xzf "$file" -C /; done
+
+        [Install]
+        WantedBy=multi-user.target
+
 # add portainer service
+#docker run --rm httpd:2.4-alpine htpasswd -nbB admin 'superpassword' | cut -d ":" -f 2
+#replace all $ with $$ for systemd
     - name: docker.portainer.service
       enabled: true
       contents: |-
@@ -61,8 +100,8 @@ systemd:
         ExecStartPre=-/usr/bin/docker stop %n
         ExecStartPre=-/usr/bin/docker rm %n
         ExecStartPre=/usr/bin/docker pull portainer/portainer-ce
-        ExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data
-        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce
+        ExecStart=-/usr/bin/mkdir -p /var/portainer/data
+        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$6km35/UTQikNs7wiDvg6nOcntii6w.KebBcysP39ZRwKBfY5gUzNC'
         ExecStop=/usr/bin/docker stop -t 15 %n
         
         [Install]

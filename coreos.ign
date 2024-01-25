@@ -29,14 +29,6 @@
           }
         },
         "mode": 493
-      },
-      {
-        "path": "/opt/openldap/docker-compose.yml",
-        "contents": {
-          "compression": "gzip",
-          "source": "data:;base64,H4sIAAAAAAAC/3SUQVODOhDH736KDHeh2rGt3CIsJSMFhtA+PWUiRGVeCQyJnee3fxOKtbTYE93/D3azm/8eRKeqRrrIurdulOgOVSGUe4NQ0wq5L3lrnhGqav4hXNSo6r+KOyftzn6wZz1QNFLzSoqOSV4bckB6UchD1TWyFlIfP4dQ5OOURcmaRbCDyKR/WFjnWpKtcUwozkkSu8i6Wy6Rl+YjxE82mBjxS9l3y2XRarto6hHyhCkw3zCjMPY3JGYppvSfJPNdZPGyruQI8ZI4IOtzpmjke/UxgjLAfhJHr2xLIXOR9c73SoyJwLufz5ZPhDLqhbDBk9QT9p4hNknq8m2k5BF1kaW7L3EZZl6Ws4BEEOMNuMgy3baLTl9xz/B6xf0rvq84P2QpzvDmHC4/W97x2m5FfZ0fX5ZQ8MkCIA6SzIPJk/cfImkIGaNbkhuIgrfN4P5h4d7uIKO3lEZze3b11g4yErwyLyIQ56ZUUXNZXownjYj3c4VGyZ8BUgYvhOYkXg/Dnh4gbJId/FwHHOSmUsi36dRYKI1YCFEKGUszCMjL0O8jpPW3i8w7/T+ly0oy45Oz4KHZf9VHA5rfLXIOvHP21ZtzMlMfFbroI47a87a0y1/lZERncPMRcbhSQiunEJ1WTo+3TafPMlnz1aM7Xz1av5HFfOEu5oMvy6bmlTy6e8pxn43Sg/pz5PazNY+9uab2yEif2Y9/7JJz7K99koapmcDR2P0swoTmdNT/CyrM83RsrsuOrGarmbsarl4pWiFLxRr5S5y23P8BAAD//2z6InVHBQAA"
-        },
-        "mode": 420
       }
     ]
   },
@@ -48,7 +40,12 @@
         "name": "open-vm-tools.service"
       },
       {
-        "contents": "[Unit]\nDescription=Portainer Admin Container\nAfter=docker.service\nRequires=docker.service network.target network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nTimeoutStartSec=0\nExecStartPre=-/usr/bin/docker stop %n\nExecStartPre=-/usr/bin/docker rm %n\nExecStartPre=/usr/bin/docker pull portainer/portainer-ce\nExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data\nExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
+        "contents": "[Unit]\nDescription=Restore Backups\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=oneshot\nExecStart=for file in /tmp/backups/*.tar.gz; do tar -xzf \"$file\" -C /; done\n\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "restore-backups.service"
+      },
+      {
+        "contents": "[Unit]\nDescription=Portainer Admin Container\nAfter=docker.service\nRequires=docker.service network.target network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nTimeoutStartSec=0\nExecStartPre=-/usr/bin/docker stop %n\nExecStartPre=-/usr/bin/docker rm %n\nExecStartPre=/usr/bin/docker pull portainer/portainer-ce\nExecStart=-/usr/bin/mkdir -p /var/portainer/data\nExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$6km35/UTQikNs7wiDvg6nOcntii6w.KebBcysP39ZRwKBfY5gUzNC'\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
         "enabled": true,
         "name": "docker.portainer.service"
       }
