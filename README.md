@@ -13,3 +13,8 @@ govc library.import library https://builds.coreos.fedoraproject.org/prod/streams
 sudo tar -zcf portainer_data.tar.gz /var/portainer
 
 python3 -m http.server 80
+
+ulimit -n 65536 
+
+docker exec tools_awx_1 make clean-ui ui-devel
+docker exec -ti tools_awx_1 awx-manage createsuperuser

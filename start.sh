@@ -4,23 +4,23 @@ if [ -z ${GOVC_PASSWORD+x} ]; then
   read -s GOVC_PASSWORD
 fi
 
-GOVC_INSECURE=true
-GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
-GOVC_USERNAME=$(jq -r '.GOVC_USERNAME' vcenter_settings.json)
-GOVC_URL=$(jq -r '.GOVC_URL' vcenter_settings.json)
-GOVC_DATASTORE=$(jq -r '.GOVC_DATASTORE' vcenter_settings.json)
-GOVC_VM=$(jq -r '.GOVC_VM' vcenter_settings.json)
-GOVC_HOST=$(jq -r '.GOVC_HOST' vcenter_settings.json)
-GOVC_NETWORK=$(jq -r '.GOVC_NETWORK' vcenter_settings.json)
+export GOVC_INSECURE=true
+export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
+export GOVC_USERNAME=$(jq -r '.GOVC_USERNAME' vcenter_settings.json)
+export GOVC_URL=$(jq -r '.GOVC_URL' vcenter_settings.json)
+export GOVC_DATASTORE=$(jq -r '.GOVC_DATASTORE' vcenter_settings.json)
+export GOVC_VM=$(jq -r '.GOVC_VM' vcenter_settings.json)
+export GOVC_HOST=$(jq -r '.GOVC_HOST' vcenter_settings.json)
+export GOVC_NETWORK=$(jq -r '.GOVC_NETWORK' vcenter_settings.json)
 OVA_URL=$(jq -r '.ova_url' vcenter_settings.json)
 OVA_NAME=$(jq -r '.ova_name' vcenter_settings.json)
 LIBRARY_NAME=$(jq -r '.library_name' vcenter_settings.json)
 CONNECTION_STRING=$(echo $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL)
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
 #govc about -u $CONNECTION
-govc session.login -u $CONNECTION
+govc session.login -u $CONNECTION_STRING
 # why this fixes things, we don't know...
-govc library.ls -u $CONNECTION > /dev/null
+govc library.ls -u $CONNECTION_STRING > /dev/null
 
 # if ~/.ssh/id_rsa does not exist, create it
 if [ ! -f ~/.ssh/id_rsa ]; then
@@ -52,7 +52,7 @@ if govc library.ls -json | jq -r '.[].name' | grep -q $LIBRARY_NAME; then
   echo "Library name: $LIBRARY_NAME already exists"
 else
   echo "Creating library $LIBRARY_NAME"
-  govc library.create -ds=$GOVC_DATASTORE $LIBRARY
+  govc library.create $LIBRARY
 fi
 
 # check if the OVA already exists in the library
@@ -63,14 +63,14 @@ else
   govc library.import -n=$OVA_NAME $LIBRARY_NAME $OVA_URL
 fi
 
-govc library.deploy -host=$GOVC_HOST /$LIBRARY_NAME/$OVA_NAME $VM_NAME
-govc vm.change -vm $VM_NAME -e="guestinfo.ignition.config.data=$(cat coreos.ign | base64 -w0)"
-govc vm.change -vm $VM_NAME -e="guestinfo.ignition.config.data.encoding=base64"
-govc vm.change -vm $VM_NAME -m=32000 -c=8
-govc vm.power -on $VM_NAME
+govc library.deploy -host=$GOVC_HOST /$LIBRARY_NAME/$OVA_NAME $GOVC_VM
+govc vm.change -vm $GOVC_VM -e="guestinfo.ignition.config.data=$(cat coreos.ign | base64 -w0)"
+govc vm.change -vm $GOVC_VM -e="guestinfo.ignition.config.data.encoding=base64"
+govc vm.change -vm $GOVC_VM -m=32000 -c=8
+govc vm.power -on $GOVC_VM
 
 echo "Waiting for VM to be ready..."
-VM_IP=$(govc vm.ip $VM_NAME)
+VM_IP=$(govc vm.ip $GOVC_VM)
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i ~/.ssh/id_rsa admin@$VM_IP
 
 # prompt user to press y to delete the VM
@@ -79,6 +79,6 @@ echo
 if [[  $REPLY =~ ^[Yy]$ ]]
 then
 # delete the VM
-  govc vm.power -off $VM_NAME
-  govc vm.destroy $VM_NAME
+  govc vm.power -off $GOVC_VM
+  govc vm.destroy $GOVC_VM
 fi
