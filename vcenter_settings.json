@@ -3,7 +3,7 @@
     "GOVC_USERNAME": "Administrator@VSPHERE.LOCAL",
     "GOVC_HOST": "10.0.1.31",
     "GOVC_DATASTORE": "esxi4_datastore",
-    "GOVC_VM": "coreos",
+    "GOVC_VM": "coreos-jared",
     "GOVC_NETWORK": "Internal Management",
     "library_name": "library",
     "ova_url": "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova",

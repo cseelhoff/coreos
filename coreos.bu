@@ -7,7 +7,7 @@ passwd:
         - docker
         - wheel
       ssh_authorized_keys:
-        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCn+0fBIIy4lZSEY9FWNBbRK+6u9eA+S2CSXyEMj6jpWRWIQgYd6Nx9ODwjuCuJPVaqKSQfpRDd3/XKExileNqJ6bge58bdJdqAbOWdRBS+3q9uHE+B+F+nSjAFTRUlvz9ltDLViNTURxCVwyJ6N750YQozyNspiZ+VlUYIoT5wc6Ov/xTmVQinJPYPv0ycOThkGqj8xo9Zdb6X+qhyV03V3+09qnrC5RWCaV1Y5L+E3QkA3SnWs6St+x5ZJzvzPMRcQ/mNIT+JTeqmSs7E5wkKAG/0ghH4TD0pm9rNwaVexYSLIF2/JmBg1tf5iI5JZkCuZFrG4xT0pDiMOLJO+pfl5Qv/IgTK+yW2rZEDiy/R3xGmJgDLfUcug+d+YW+MBG0DNc0wzfta7TZzx70VZblBQK/fP/S3jm57cVftYp8Ovm+B6Cj7Lpmz6Qv4uLtA6G+wWrqqbs0Fa0PM/yZK6ehRv3sVDOoLN/ie+d+f1MmugjUVtNBWgwiEsqrRpPJvIfRU+YsrUHmg5qnKSLxpL8oVgfhITZ4Ii/TttvwCcnWOjyfsV+DJRl4OE0H6uSBk0TifdZM29uaJylQ4Y5KMoaF7Y0S2R2wVDTcaN3apI15k+axF6Q/+hPLqrc96CDC628kMwGeXEKP1gRHZzh5VOpZkqB0rgHxXOsen6U2xkOZt5w== root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e
+        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCd+EW4+G6YaAohQQbtcS0O0qRd+NVN7jiCgSV9aUX9o7fg6WzeZN/XjNGXXtRjW98TVPOFPcY6R+oMZNO37IvxSirTA6Tq+8bvNvs4/z/B/UDMFsQt0Q24WVzUAyV6PGWpNfjE1nMQ81ZhDjmAAdj3JW/QHQJfLKiOHJYPXpeJLgytP+kL/luIT16kxEkkVfgn7rERJZsrWXWxizkZMlqJfTsG/StX08K7Z6apVfQw/x+Scb7Qzffn1LUDAEJy4AhnCzp8Vj/LFmzdBWiDB5e3LVZ6klLZCo6Yn/iTHH2+4yR4+A08y6sXSEmQWhYG5vilnDdBftnxsDCa5boSxpU3j4e4vaB1n4rEU/Vo9+X4nTYfT2Y95lkVi+Squ7D811/pdsbM2PaEqWyOilFOLr9qvnx/ysjt9hUCmHihgkcYJ8IDJ9eNZbA7kMMUVeSZLoS4zRTcWzKDit1/2LFNp7WeTcdlJhg6a7UX+6oncPG7pcou7F5XbzNKToKuH4X7gFZOC6PGPHq6C7EoYFY53/4p+r4/Nn0UrDCRWOWj2ntaWJmgwbSG295ZlMaxlCDXWrEx/nQnNCuv8Yl07Oj1V6TcdXc441H6y3y2tE1TQ0FgILLtQLZOSfwG+hSFMK2R4clhEd5opFBl9TjvnmJuCrasTA9FygSgMrKBgrRNkqZkvw== root@3d3f70142ed0 root@3d3f70142ed0 root@3d3f70142ed0 root@3d3f70142ed0 root@3d3f70142ed0 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@68e1a3b53fc4 root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e root@15a30bf7891e
       password_hash: $y$j9T$xP4E93jrWCP37dNfSKGJL/$EYZt/NBmSBjHu9EeaKKVXKnszK0iJsHH/XCbXqdn.9B
 storage:
   files:
@@ -106,7 +106,7 @@ systemd:
         ExecStartPre=-/usr/bin/docker rm %n
         ExecStartPre=/usr/bin/docker pull portainer/portainer-ce
         ExecStart=-/usr/bin/mkdir -p /var/portainer/data
-        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$IaQTZSTYa2QxpHxYjJueq.3SsekgwPvr18pmsBXvbIEO/qAFdjWEK'
+        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce --admin-password '$$2y$$05$$S74A8FWdnTRZsZLxS2kIJuQIKoWa3mhi/o3fVo3mueBg4qWQdJsKa'
         ExecStop=/usr/bin/docker stop -t 15 %n
         
         [Install]

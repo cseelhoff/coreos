@@ -3,7 +3,7 @@ if [ -z ${GOVC_PASSWORD+x} ]; then
   echo "Enter vCenter password:"
   read -s GOVC_PASSWORD
 fi
-
+echo "`date +"%Y-%m-%d %T"` -- deployment started!"
 GOVC_INSECURE=true
 GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
 GOVC_USERNAME=$(jq -r '.GOVC_USERNAME' vcenter_settings.json)
@@ -16,11 +16,14 @@ OVA_URL=$(jq -r '.ova_url' vcenter_settings.json)
 OVA_NAME=$(jq -r '.ova_name' vcenter_settings.json)
 LIBRARY_NAME=$(jq -r '.library_name' vcenter_settings.json)
 CONNECTION_STRING=$(echo $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL)
+# add the vcenter certificate thumbprint to the known hosts file
+export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
-#govc about -u $CONNECTION
-govc session.login -u $CONNECTION
+govc about -u $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
+# init login
+govc session.login -u $CONNECTION_STRING
 # why this fixes things, we don't know...
-govc library.ls -u $CONNECTION > /dev/null
+govc library.ls -u   > /dev/null
 
 # if ~/.ssh/id_rsa does not exist, create it
 if [ ! -f ~/.ssh/id_rsa ]; then
@@ -48,37 +51,39 @@ sed -i "s/--admin-password '[^']*/--admin-password '$ESCAPED_PORTAINER_BCRYPT/g"
 butane --files-dir ./ --pretty --strict coreos.bu --output coreos.ign
 
 # use govc library.ls -json to check if the library exists
-if govc library.ls -json | jq -r '.[].name' | grep -q $LIBRARY_NAME; then
+if govc library.ls -u $CONNECTION_STRING -json | jq -r '.[].name' | grep -q $LIBRARY_NAME; then
   echo "Library name: $LIBRARY_NAME already exists"
 else
   echo "Creating library $LIBRARY_NAME"
-  govc library.create -ds=$GOVC_DATASTORE $LIBRARY
+  govc library.create -u $CONNECTION_STRING -ds=$GOVC_DATASTORE $LIBRARY_NAME
 fi
 
 # check if the OVA already exists in the library
-if govc library.ls -json $LIBRARY_NAME/* | jq -r '.[].name' | grep -q $OVA_NAME; then
+if govc library.ls -u $CONNECTION_STRING $LIBRARY_NAME/* | grep -q $OVA_NAME; then
   echo "OVA $OVA_NAME already exists in library $LIBRARY_NAME"
 else
   echo "Importing OVA $OVA_NAME into library $LIBRARY_NAME"
-  govc library.import -n=$OVA_NAME $LIBRARY_NAME $OVA_URL
+  govc library.import -u $CONNECTION_STRING -n=$OVA_NAME $LIBRARY_NAME $OVA_URL
 fi
 
-govc library.deploy -host=$GOVC_HOST /$LIBRARY_NAME/$OVA_NAME $VM_NAME
-govc vm.change -vm $VM_NAME -e="guestinfo.ignition.config.data=$(cat coreos.ign | base64 -w0)"
-govc vm.change -vm $VM_NAME -e="guestinfo.ignition.config.data.encoding=base64"
-govc vm.change -vm $VM_NAME -m=32000 -c=8
-govc vm.power -on $VM_NAME
+govc library.deploy -u $CONNECTION_STRING -host=$GOVC_HOST /$LIBRARY_NAME/$OVA_NAME $GOVC_VM
+govc vm.change -u $CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data=$(cat coreos.ign | base64 -w0)"
+govc vm.change -u $CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data.encoding=base64"
+govc vm.change -u $CONNECTION_STRING -vm $GOVC_VM -m=32000 -c=8
+govc vm.power -u $CONNECTION_STRING -on $GOVC_VM
 
 echo "Waiting for VM to be ready..."
-VM_IP=$(govc vm.ip $VM_NAME)
+VM_IP=$(govc vm.ip -u $CONNECTION_STRING $GOVC_VM )
+echo "YOUR PORTAINER PASSWORD IS: $PORTAINER_PASSWORD"
+echo "$GOVC_VM's IP: $VM_IP"
+echo "`date +"%Y-%m-%d %T"` -- deployment complete!"
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i ~/.ssh/id_rsa admin@$VM_IP
 
 # prompt user to press y to delete the VM
 read -p "Press y to delete the VM: " -n 1 -r
-echo
 if [[  $REPLY =~ ^[Yy]$ ]]
 then
 # delete the VM
-  govc vm.power -off $VM_NAME
-  govc vm.destroy $VM_NAME
+  govc vm.power -u $CONNECTION_STRING -off $GOVC_VM
+  govc vm.destroy -u $CONNECTION_STRING $GOVC_VM
 fi
