@@ -10,7 +10,7 @@ if [ -z ${STACK_NAME+x} ]; then
 fi
 PORTAINER_URL="http://localhost:9000"
 USERNAME="admin"
-PORTAINER_PASSWORD="5JDyEjT5k6ooWGDa9JL4gggz/m/2qNGrHwQ5yZHZT9A="
+PORTAINER_PASSWORD="hECjQRXcGRwatHuV/1RZf27nXueBZYl1/XtkXVFr/Lc="
 AUTH_PAYLOAD='{"Username": "'"$USERNAME"'",  "Password": "'"$PORTAINER_PASSWORD"'"}'
 RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$AUTH_PAYLOAD" $PORTAINER_URL/api/auth)
 AUTH_TOKEN=$(echo $RESPONSE | jq -r .jwt)
