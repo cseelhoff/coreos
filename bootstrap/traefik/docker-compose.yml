@@ -17,24 +17,24 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/data/traefik.yml:/traefik.yml:ro
-      - ./traefik/data/acme.json:/acme.json
-      - ./traefik/data/config.yml:/config.yml:ro
+      - /home/localadmin/coreos/bootstrap/traefik/data/traefik.yml:/traefik.yml:ro
+      - /home/localadmin/coreos/bootstrap/traefik/data/acme.json:/acme.json
+      - /home/localadmin/coreos/bootstrap/traefik/data/config.yml:/config.yml:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.entrypoints=http"
-      - "traefik.http.routers.traefik.rule=Host(`traefik-dashboard.us.177cpt.com`)"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=USER:BASIC_AUTH_PASSWORD"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.177cpt.com`)"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$apr1$$Ug3sJGDe$$gb8NoDpFc.1AhlW2v31Vh/"
       - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
       - "traefik.http.routers.traefik-secure.entrypoints=https"
-      - "traefik.http.routers.traefik-secure.rule=Host(`traefik-dashboard.us.177cpt.com`)"
+      - "traefik.http.routers.traefik-secure.rule=Host(`traefik.us.177cpt.com`)"
       - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
       - "traefik.http.routers.traefik-secure.tls=true"
       - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].main=us.177cpt.com"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.us.177cpt.com"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=177cpt.com"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.177cpt.com"
       - "traefik.http.routers.traefik-secure.service=api@internal"
 
 networks:
