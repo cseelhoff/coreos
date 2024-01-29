@@ -1,5 +1,12 @@
 #!/bin/sh
 
+# possible requirements:
+# sudo apt install -y apache2-utils whois jq curl
+# curl -L -o - https://github.com/vmware/govmomi/releases/download/v0.34.2/govc_Linux_x86_64.tar.gz | sudo tar -C /usr/local/bin -xvzf - govc
+# sudo curl -L https://github.com/coreos/butane/releases/download/v0.19.0/butane-x86_64-unknown-linux-gnu --output /usr/local/bin/butane && sudo chmod +x /usr/local/bin/butane
+# sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+# sudo chmod 755 /usr/local/bin/docker-compose
+
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
 [ -f .env ] && source .env
@@ -40,11 +47,11 @@ export PORTAINER_DOCKER_IMAGE=portainer/portainer-ce:2.19.4
 export OPENLDAP_DOCKER_IMAGE=osixia/openldap:1.5.0
 NEXUS_DOCKER_IMAGE=sonatype/nexus3:3.64.0
 GITEA_DOCKER_IMAGE=gitea/gitea:1.21.4
-TRAEFIK_DOCKER_IMAGE=traefik:v2.11
+export TRAEFIK_DOCKER_IMAGE=traefik:v2.11
 export PHPLDAPADMIN_DOCKER_IMAGE=osixia/phpldapadmin:0.9.0
 export AWX_GHCR_IMAGE=ghcr.io/ansible/awx_devel:devel
-PIHOLE_ETC_PIHOLE_DIR=$(pwd)/etc-pihole/
-PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/etc-dnsmasq.d/
+PIHOLE_ETC_PIHOLE_DIR=$(pwd)/bootstrap/etc-pihole/
+PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/bootstrap/etc-dnsmasq.d/
 PIHOLE_PASSWORD=$(openssl rand -base64 32)
 TRAEFIK_PASSWORD=$(openssl rand -base64 32)
 NEXUS_PASSWORD=$(openssl rand -base64 32)
@@ -74,7 +81,7 @@ PIHOLE_CUSTOM_DNS_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/scripts/pi-hole/php/custo
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FQDN/service/rest/v1
 NEXUS_CREDS=admin:$NEXUS_PASSWORD
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
-export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD")
+export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g) 
 export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2)
 export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD)
 # if ~/.ssh/id_rsa does not exist, create it
@@ -93,14 +100,14 @@ envsubst < coreos/openldap/docker-compose.yml.tpl > coreos/openldap/docker-compo
 envsubst < coreos/portainer/deploy-stack.sh.tpl > coreos/portainer/deploy-stack.sh
 envsubst < coreos/coreos.bu.tpl > coreos/coreos.bu
 echo $AWX_SECRET_KEY > coreos/awx/etc/tower/SECRET_KEY
-butane --files-dir ./ --pretty --strict coreos.bu --output coreos.ign
+butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/coreos.ign
 
 ### --- MAIN --- ###
 echo "`date +"%Y-%m-%d %T"` -- deployment started!"
 # Run the pihole container for DNS and DHCP on bootstrap
 mkdir -p $PIHOLE_ETC_PIHOLE_DIR
 mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
-docker run -d \
+sudo docker run -d \
     --name=pihole \
     -h pihole \
     -p 53:53/tcp -p 53:53/udp -p 67:67/udp -p 80:80/tcp \
@@ -137,13 +144,10 @@ add_dns_a_record $TRAEFIK_FQDN
 add_dns_a_record $DOCKER_FQDN
 
 # create proxy network for traefik
-docker network create proxy
+sudo docker network create proxy
 
-# download and install docker-compose
-curl -L "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
-chmod 755 /usr/local/bin/docker-compose
-
-docker-compose -f traefik/docker-compose.yml -p traefik up -d
+chmod 600 bootstrap/traefik/data/acme.json
+sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 #docker-compose -f traefik/docker-compose.yml -p traefik up -d --force-recreate
 
 # install nexus into docker container

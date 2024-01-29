@@ -2,13 +2,13 @@ api:
   dashboard: true
   debug: true
 entryPoints:
-#  http:
-#    address: ":80"
-#    http:
-#      redirections:
-#        entryPoint:
-#          to: https
-#          scheme: https
+  http:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: https
+          scheme: https
   https:
     address: ":443"
 serversTransport:

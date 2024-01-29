@@ -10,7 +10,7 @@ services:
     networks:
       - proxy
     ports:
-      - 80:80
+      #- 80:80
       - 443:443
     environment:
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
@@ -33,8 +33,8 @@ services:
       - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
       - "traefik.http.routers.traefik-secure.tls=true"
       - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].main=${DOMAIN}"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=${DOMAIN_NAME}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.${DOMAIN_NAME}"
       - "traefik.http.routers.traefik-secure.service=api@internal"
 
 networks:
