@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
@@ -45,8 +45,8 @@ export TRAEFIK_DOCKER_IMAGE=traefik:v2.11
 export PHPLDAPADMIN_DOCKER_IMAGE=osixia/phpldapadmin:0.9.0
 #export AWX_GHCR_IMAGE=ghcr.io/ansible/awx_devel:devel
 export AWX_GHCR_IMAGE=ansible/awx_devel:devel
-PIHOLE_ETC_PIHOLE_DIR=$(pwd)/bootstrap/etc-pihole/
-PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/bootstrap/etc-dnsmasq.d/
+#PIHOLE_ETC_PIHOLE_DIR=$(pwd)/bootstrap/etc-pihole/
+#PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/bootstrap/etc-dnsmasq.d/
 # replace symbols that would need to be web encoded
 PIHOLE_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 TRAEFIK_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
@@ -115,8 +115,8 @@ butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/cor
 
 ### --- MAIN --- ###
 echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
-mkdir -p $PIHOLE_ETC_PIHOLE_DIR
-mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
+#mkdir -p $PIHOLE_ETC_PIHOLE_DIR
+#mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
 sudo docker run -d \
   --name=pihole \
   -h pihole \
@@ -130,8 +130,8 @@ sudo docker run -d \
   -e PIHOLE_DOMAIN=$DOMAIN_NAME \
   -e VIRTUAL_HOST=pihole \
   -e WEBPASSWORD=$PIHOLE_PASSWORD \
-  -v $PIHOLE_ETC_PIHOLE_DIR:/etc/pihole/ \
-  -v $PIHOLE_ETC_DNSMASQ_DIR:/etc/dnsmasq.d/ \
+  -v /etc/pihole/ \
+  -v /etc/dnsmasq.d/ \
   --cap-add NET_ADMIN \
   --restart=unless-stopped \
   $PIHOLE_DOCKER_IMAGE
@@ -178,14 +178,13 @@ if [ -f backup/nexus-backup.tar.gz ]; then
 fi
 printf "Starting Nexus"
 sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $NEXUS_DOCKER_IMAGE
-printf 'Waiting for Nexus to start'
+printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
 until $(curl -u admin:$NEXUS_TEMP_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
   printf '.'
   sleep 1
   NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
 done
 # change the default admin password
-NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
 echo "Changing Nexus password from: $NEXUS_TEMP_PASSWORD to: $NEXUS_PASSWORD"
 curl -u admin:$NEXUS_TEMP_PASSWORD -X PUT -d $NEXUS_PASSWORD -H "Content-Type: text/plain" $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password
 echo "Setting active realms to LdapRealm, DockerToken, and NexusAuthenticatingRealm"
