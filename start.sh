@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ### --- possible requirements --- ###
-#sudo apt install -y openssh-server
+#sudo apt install openssh-server
 
 #echo -e "[Resolve]\nDNS=1.1.1.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 #sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
@@ -11,6 +11,7 @@
 #sudo curl -L https://github.com/coreos/butane/releases/download/v0.19.0/butane-x86_64-unknown-linux-gnu --output /usr/local/bin/butane && sudo chmod +x /usr/local/bin/butane && \
 #sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
 #sudo chmod 755 /usr/local/bin/docker-compose
+#git clone https://github.com/cseelhoff/coreos && cd coreos
 
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file

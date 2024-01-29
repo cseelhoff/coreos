@@ -12,14 +12,13 @@ http:
         - https-redirectscheme
       tls: {}
       service: pihole
-    
 #endregion
 #region services
   services:
     pihole:
       loadBalancer:
         servers:
-          - url: "${PIHOLE_LOCALHOST_BASE_URL}"
+          - url: "${PIHOLE_FQDN_BASE_URL}"
         passHostHeader: true
 #endregion
   middlewares:
