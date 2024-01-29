@@ -10,7 +10,7 @@
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
 [ -f .env ] && source .env
-keys=("CF_API_KEY" "GOVC_PASSWORD" "COREOS_ADMIN_PASSWORD")
+keys=("CF_DNS_API_TOKEN" "GOVC_PASSWORD" "COREOS_ADMIN_PASSWORD")
 for key in "${keys[@]}"; do
     # Check if the key exists in the environment
     if [ -z "${!key}" ]; then
@@ -52,13 +52,14 @@ export PHPLDAPADMIN_DOCKER_IMAGE=osixia/phpldapadmin:0.9.0
 export AWX_GHCR_IMAGE=ghcr.io/ansible/awx_devel:devel
 PIHOLE_ETC_PIHOLE_DIR=$(pwd)/bootstrap/etc-pihole/
 PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/bootstrap/etc-dnsmasq.d/
-PIHOLE_PASSWORD=$(openssl rand -base64 32)
-TRAEFIK_PASSWORD=$(openssl rand -base64 32)
-NEXUS_PASSWORD=$(openssl rand -base64 32)
-export LDAP_ADMIN_PASSWORD=$(openssl rand -base64 32)
-export LDAP_CONFIG_PASSWORD=$(openssl rand -base64 32)
-export PORTAINER_PASSWORD=$(openssl rand -base64 32)
-export DJANGO_SUPERUSER_PASSWORD=$(openssl rand -base64 32)
+# replace symbols that would need to be web encoded
+PIHOLE_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+TRAEFIK_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+NEXUS_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+export LDAP_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+export LDAP_CONFIG_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+export PORTAINER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+export DJANGO_SUPERUSER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 export AWX_POSTGRES_PASSWORD="rzabMdUaDNuyQGmnYUQN" #$(openssl rand -base64 32)
 export BROADCAST_WEBSOCKET_SECRET="QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y=" #$(openssl rand -base64 32)
 export AWX_SECRET_KEY="JDqxKuQemHEajsZVZFQs" #$(openssl rand -base64 32)
@@ -77,6 +78,7 @@ PIHOLE_BOOTSTRAP_BASE_URL=http://localhost
 DOCKER_REGISTRY_HOST=https://$DOCKER_FQDN
 PIHOLE_LOGIN_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/login.php
 PIHOLE_INDEX_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/index.php
+PIHOLE_SETTINGS_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/settings.php?tab=dns
 PIHOLE_CUSTOM_DNS_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/scripts/pi-hole/php/customdns.php
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FQDN/service/rest/v1
 NEXUS_CREDS=admin:$NEXUS_PASSWORD
@@ -132,23 +134,30 @@ until $(curl --output /dev/null --silent --head --fail $PIHOLE_LOGIN_URL); do
     printf '.'
     sleep 5
 done
+# rm cookies.txt if it exists
+[ -f cookies.txt ] && rm cookies.txt
 PIHOLE_TOKEN=$(curl -s -d "pw=$PIHOLE_PASSWORD" -c cookies.txt -X POST $PIHOLE_INDEX_URL | grep -oP '(?<=<div id="token" hidden>)(\S+)(?=<\/div>)' -m 1 | tr '\n' '\0' | jq -sRr @uri)
 # Add DNS A record for pihole, nexus, traefik
 function add_dns_a_record() {
     local fqdn=$1
-    curl -d "action=add&ip=$DNS_SERVER&domain=$fqdn&token=$PIHOLE_TOKEN" -b cookies.txt -X POST $PIHOLE_CUSTOM_DNS_URL
+    curl -s -d "action=add&ip=$DNS_SERVER&domain=$fqdn&token=$PIHOLE_TOKEN" -b cookies.txt -X POST $PIHOLE_CUSTOM_DNS_URL
 }
 add_dns_a_record $PIHOLE_FQDN
 add_dns_a_record $NEXUS_FQDN
 add_dns_a_record $TRAEFIK_FQDN
 add_dns_a_record $DOCKER_FQDN
+# set default DNS servers to cloudflare 1.1.1.1 and 1.0.0.1
+curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL \
+  --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN"
+
+# set the bootstrap DNS server to the local pihole and the default search domain
+echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 
 # create proxy network for traefik
 sudo docker network create proxy
 
 chmod 600 bootstrap/traefik/data/acme.json
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
-#docker-compose -f traefik/docker-compose.yml -p traefik up -d --force-recreate
 
 # install nexus into docker container
 docker run -d -p $NEXUS_PORT:$NEXUS_PORT --name nexus $NEXUS_DOCKER_IMAGE
