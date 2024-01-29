@@ -4,7 +4,7 @@ http:
     pihole:
       entryPoints:
         - "https"
-      rule: "Host(`${PIHOLE_FQDN}`)"
+      rule: "Host(`${PIHOLE_FQDN}`,`pihole`)"
       middlewares:
         - redirectregex-pihole
         - default-headers
@@ -19,7 +19,7 @@ http:
     pihole:
       loadBalancer:
         servers:
-          - url: "${PIHOLE_FQDN_BASE_URL}"
+          - url: "${PIHOLE_LOCALHOST_BASE_URL}"
         passHostHeader: true
 #endregion
   middlewares:

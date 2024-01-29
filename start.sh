@@ -1,11 +1,16 @@
 #!/bin/sh
 
-# possible requirements:
-# sudo apt install -y apache2-utils whois jq curl
-# curl -L -o - https://github.com/vmware/govmomi/releases/download/v0.34.2/govc_Linux_x86_64.tar.gz | sudo tar -C /usr/local/bin -xvzf - govc
-# sudo curl -L https://github.com/coreos/butane/releases/download/v0.19.0/butane-x86_64-unknown-linux-gnu --output /usr/local/bin/butane && sudo chmod +x /usr/local/bin/butane
-# sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
-# sudo chmod 755 /usr/local/bin/docker-compose
+### --- possible requirements --- ###
+#sudo apt install -y openssh-server
+
+#echo -e "[Resolve]\nDNS=1.1.1.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
+#sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+#sudo systemctl disable systemd-resolved && sudo systemctl stop systemd-resolved
+#sudo apt install -y apache2-utils whois jq curl docker.io git && \
+#curl -L -o - https://github.com/vmware/govmomi/releases/download/v0.34.2/govc_Linux_x86_64.tar.gz | sudo tar -C /usr/local/bin -xvzf - govc && \
+#sudo curl -L https://github.com/coreos/butane/releases/download/v0.19.0/butane-x86_64-unknown-linux-gnu --output /usr/local/bin/butane && sudo chmod +x /usr/local/bin/butane && \
+#sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
+#sudo chmod 755 /usr/local/bin/docker-compose
 
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
@@ -68,18 +73,19 @@ export NEXUS_FQDN=nexus.$DOMAIN_NAME
 export TRAEFIK_FQDN=traefik.$DOMAIN_NAME
 export DOCKER_FQDN=docker.$DOMAIN_NAME
 export PORTAINER_PORT=9000
+export PIHOLE_PORT=8001
 NEXUS_PORT=8081
 DOCKER_REGISTRY_PORT=5000
 VCENTER_LIBRARY_NAME=library
 
 ### --- AUTO-GENERATED VARIABLES --- ###
-export PIHOLE_FQDN_BASE_URL=http://$PIHOLE_FQDN
-PIHOLE_BOOTSTRAP_BASE_URL=http://localhost
+export PIHOLE_FQDN_BASE_URL=http://$PIHOLE_FQDN:$PIHOLE_PORT
+export PIHOLE_LOCALHOST_BASE_URL=http://localhost:$PIHOLE_PORT
 DOCKER_REGISTRY_HOST=https://$DOCKER_FQDN
-PIHOLE_LOGIN_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/login.php
-PIHOLE_INDEX_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/index.php
-PIHOLE_SETTINGS_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/settings.php?tab=dns
-PIHOLE_CUSTOM_DNS_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/scripts/pi-hole/php/customdns.php
+PIHOLE_LOGIN_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/login.php
+PIHOLE_INDEX_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/index.php
+PIHOLE_SETTINGS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns
+PIHOLE_CUSTOM_DNS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FQDN/service/rest/v1
 NEXUS_CREDS=admin:$NEXUS_PASSWORD
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
@@ -112,7 +118,7 @@ mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
 sudo docker run -d \
     --name=pihole \
     -h pihole \
-    -p 53:53/tcp -p 53:53/udp -p 67:67/udp -p 80:80/tcp \
+    -p 53:53/tcp -p 53:53/udp -p 67:67/udp -p $PIHOLE_PORT:80/tcp \
     -e DNSMASQ_LISTENING=all \
     -e TZ=$TIMEZONE \
     -e PIHOLE_DNS_=$DNS_SERVER \
@@ -147,11 +153,11 @@ add_dns_a_record $NEXUS_FQDN
 add_dns_a_record $TRAEFIK_FQDN
 add_dns_a_record $DOCKER_FQDN
 # set default DNS servers to cloudflare 1.1.1.1 and 1.0.0.1
-curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL \
-  --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN"
+curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
 
-# set the bootstrap DNS server to the local pihole and the default search domain
+# set the bootstrap server to use the local pihole for DNS and set the default search domain
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
+echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 
 # create proxy network for traefik
 sudo docker network create proxy

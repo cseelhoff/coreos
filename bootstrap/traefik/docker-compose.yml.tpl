@@ -10,7 +10,7 @@ services:
     networks:
       - proxy
     ports:
-      #- 80:80
+      - 80:80
       - 443:443
     environment:
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
