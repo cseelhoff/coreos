@@ -12,6 +12,7 @@
 #sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
 #sudo chmod 755 /usr/local/bin/docker-compose
 #git clone https://github.com/cseelhoff/coreos && cd coreos
+#nano boostrap/traefik/data/acme.json
 
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
@@ -99,14 +100,14 @@ DOCKER_REGISTRY_IP=$BOOTSTRAP_IP
 
 export PIHOLE_BACKEND_URL=http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT
 export NEXUS_BACKEND_URL=http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT
-export DOCKER_REGISTRY_BACKEND_URL=https://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT
+export DOCKER_REGISTRY_BACKEND_URL=http://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT
 PIHOLE_LOCALHOST_BASE_URL=http://localhost:$PIHOLE_PORT
 PIHOLE_LOGIN_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/login.php
 PIHOLE_INDEX_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/index.php
 PIHOLE_SETTINGS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns
 PIHOLE_CUSTOM_DNS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php
-NEXUS_SERIVICE_REST_URL=https://$NEXUS_FQDN_FRONTEND/service/rest/v1
-DOCKER_REGISTRY_URL=https://$DOCKER_REGISTRY_FQDN_FRONTEND
+NEXUS_SERIVICE_REST_URL=https://$NEXUS_FRONTEND_FQDN/service/rest/v1
+#DOCKER_REGISTRY_URL=https://$DOCKER_REGISTRY_FRONTEND_FQDN
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g) 
 export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2)
@@ -169,15 +170,15 @@ function add_dns_a_record() {
   local fqdn=$1
   local ip=$2
   echo "Adding DNS A record for $fqdn with IP $ip"
-  curl -s -d "action=add&ip=$ip&domain=$fqdn&token=$PIHOLE_TOKEN" -b cookies.txt -X POST $PIHOLE_CUSTOM_DNS_URL > /dev/null
+  curl -s -d "action=add&ip=$ip&domain=$fqdn&token=$PIHOLE_TOKEN" -b cookies.txt -X POST $PIHOLE_CUSTOM_DNS_URL
 }
 add_dns_a_record $PIHOLE_BACKEND_FQDN $PIHOLE_IP
 add_dns_a_record $NEXUS_BACKEND_FQDN $NEXUS_IP
-add_dns_a_record $DOCKER_BACKEND_FQDN $DOCKER_REGISTRY_IP
+add_dns_a_record $DOCKER_REGISTRY_BACKEND_FQDN $DOCKER_REGISTRY_IP
 add_dns_a_record $TRAEFIK_FQDN $TRAEFIK_IP
 add_dns_a_record $PIHOLE_FRONTEND_FQDN $TRAEFIK_IP
 add_dns_a_record $NEXUS_FRONTEND_FQDN $TRAEFIK_IP
-add_dns_a_record $DOCKER_FRONTEND_FQDN $TRAEFIK_IP
+add_dns_a_record $DOCKER_REGISTRY_FRONTEND_FQDN $TRAEFIK_IP
 echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
 
@@ -195,7 +196,7 @@ echo "Starting Traefik"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 
 echo "Starting Nexus"
-sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT --name nexus $NEXUS_DOCKER_IMAGE
+sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus $NEXUS_DOCKER_IMAGE
 
 # change the default admin password
 # loop until NEXUS_TEMP_PASSWORD is not empty
@@ -209,19 +210,33 @@ echo "Changing Nexus password from: $NEXUS_TEMP_PASSWORD to: $NEXUS_PASSWORD"
 curl -u admin:$NEXUS_TEMP_PASSWORD -X PUT -d $NEXUS_PASSWORD -H "Content-Type: text/plain" $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password
 
 echo "Setting active realms to LdapRealm, DockerToken, and NexusAuthenticatingRealm"
+curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '[
+    "LdapRealm",
+    "DockerToken",
+    "NexusAuthenticatingRealm"
+  ]' -X PUT $NEXUS_SERIVICE_REST_URL/security/realms/active
+
+echo "Creating docker-hosted repository"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
-    [
-      "LdapRealm",
-      "DockerToken",
-      "NexusAuthenticatingRealm"
-    ]
-  }' -X PUT $NEXUS_SERIVICE_REST_URL/security/realms/active
+  "name": "docker-hosted",
+  "online": true,
+  "storage": {
+    "blobStoreName": "default",
+    "strictContentTypeValidation": true,
+    "writePolicy": "ALLOW"
+  },
+  "docker": {
+    "v1Enabled": false,
+    "forceBasicAuth": false
+  }
+}' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/hosted
 
 echo "Creating docker-proxy repository"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "name": "docker-proxy",
   "online": true,
   "storage": {
+    "blobStoreName": "default",
     "strictContentTypeValidation": true
   },
   "proxy": {
@@ -251,6 +266,7 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "name": "ghcr-proxy",
   "online": true,
   "storage": {
+    "blobStoreName": "default",
     "strictContentTypeValidation": true
   },
   "proxy": {
@@ -275,25 +291,12 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   }
 }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
 
-echo "Creating docker-hosted repository"
-curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
-  "name": "docker-hosted",
-  "online": true,
-  "storage": {
-    "strictContentTypeValidation": true,
-    "writePolicy": "ALLOW"
-  },
-  "docker": {
-    "v1Enabled": false,
-    "forceBasicAuth": false
-  }
-}' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/hosted
-
 echo "Creating docker-group repository for docker-hosted, docker-proxy, and ghcr-proxy"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
   \"name\": \"docker-group\",
   \"online\": true,
   \"storage\": {
+    \"blobStoreName\": \"default\",
     \"strictContentTypeValidation\": true
   },
   \"group\": {
@@ -306,16 +309,16 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
   \"docker\": {
     \"v1Enabled\": false,
     \"forceBasicAuth\": false,
-    \"httpsPort\": $DOCKER_REGISTRY_PORT
+    \"httpPort\": $DOCKER_REGISTRY_PORT
   }
 }" -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/group
 
 echo "Caching docker images in Nexus"
-docker pull $DOCKER_REGISTRY_URL/$NEXUS_DOCKER_IMAGE
-docker pull $DOCKER_REGISTRY_URL/$PORTAINER_DOCKER_IMAGE
-docker pull $DOCKER_REGISTRY_URL/$OPENLDAP_DOCKER_IMAGE
-docker pull $DOCKER_REGISTRY_URL/$TRAEFIK_DOCKER_IMAGE
-docker pull $DOCKER_REGISTRY_URL/$AWX_GHCR_IMAGE
+sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
+sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
+sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
+sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
+sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
 
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
 govc about -u $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
