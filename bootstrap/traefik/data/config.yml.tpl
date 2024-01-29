@@ -4,7 +4,7 @@ http:
     pihole:
       entryPoints:
         - "https"
-      rule: "Host(`${PIHOLE_FQDN}`,`pihole`)"
+      rule: "Host(`${PIHOLE_FQDN}`)"
       middlewares:
         - redirectregex-pihole
         - default-headers
