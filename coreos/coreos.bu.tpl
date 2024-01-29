@@ -7,7 +7,7 @@ passwd:
         - docker
         - wheel
       ssh_authorized_keys:
-        - ssh-rsa ${COREOS_SSH_PUBLIC_KEY}
+        - ${COREOS_SSH_PUBLIC_KEY}
       password_hash: ${COREOS_ADMIN_PASSWORD_HASH}
 storage:
   files:

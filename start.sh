@@ -92,7 +92,7 @@ PIHOLE_CUSTOM_DNS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/custo
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FRONTEND_FQDN/service/rest/v1
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g) 
-export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2)
+export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2 | sed -e s/\\$/\\$\\$/g)
 export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD)
 echo "Creating ssh keypair if it does not exist..."
 [ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N '' >/dev/null
@@ -172,9 +172,9 @@ chmod 600 bootstrap/traefik/data/acme.json
 echo "Starting Traefik"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 sudo docker volume create --name nexus-data
-if [ -f backup/nexus-backup.7z ]; then
+if [ -f backup/nexus-backup.tar.gz ]; then
   printf "Restoring Nexus from backup"
-  sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup crazymax/7zip 7z x -bsp1 /backup/nexus-backup.7z -o/nexus-data
+  sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine tar -xzf /backup/nexus-backup.tar.gz -C /nexus-data
 fi
 printf "Starting Nexus"
 sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $NEXUS_DOCKER_IMAGE
@@ -291,23 +291,22 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
 printf 'Removing local docker images cache'
 sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
 sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
-sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
+#sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
 sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
-sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
+#sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
 printf 'Caching docker images in Nexus'
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
-sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
+#sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
-sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
+#sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
 
 #When stopping, be sure to allow sufficient time for the databases to fully shut down.
 printf 'Stopping Nexus to create backup'
 sudo docker stop --time=120 nexus
 printf 'Creating Nexus backup'
 mkdir backup
-sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup crazymax/7zip 7z a -bsp1 /backup/nexus-backup.7z /nexus-data/* 
-#sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -cvf /backup/nexus-backup.tar.gz ."
+sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine tar -C /nexus-data -cf /backup/nexus-backup.tar.gz .
 printf 'Starting Nexus'
 sudo docker start nexus
 printf 'Bootstrap complete!'
@@ -337,7 +336,7 @@ fi
 
 printf 'Deploying VM from OVA'
 govc library.deploy -u $GOVC_CONNECTION_STRING -host=$GOVC_HOST /$VCENTER_LIBRARY_NAME/$COREOS_OVA_NAME $GOVC_VM
-govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data=$(cat coreos.ign | base64 -w0)"
+govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data=$(cat coreos/coreos.ign | base64 -w0)"
 govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data.encoding=base64"
 govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -m=32000 -c=8
 govc vm.power -u $GOVC_CONNECTION_STRING -on $GOVC_VM
