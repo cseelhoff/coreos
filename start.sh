@@ -35,6 +35,8 @@ PIHOLE_LOGIN_URL=$PIHOLE_BASE_URL/login.php
 PIHOLE_INDEX_URL=$PIHOLE_BASE_URL/index.php
 PIHOLE_CUSTOM_DNS_URL=$PIHOLE_BASE_URL/scripts/pi-hole/php/customdns.php
 PIHOLE_PASSWORD=$(openssl rand -base64 32)
+PIHOLE_ETC_PIHOLE_DIR=$(pwd)/etc-pihole/
+PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/etc-dnsmasq.d/
 TRAEFIK_PASSWORD=$(openssl rand -base64 32)
 NEXUS_PASSWORD=$(openssl rand -base64 32)
 export PORTAINER_PASSWORD=$(openssl rand -base64 32)
@@ -58,6 +60,8 @@ export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD")
 envsubst < docker-compose.yml.tpl > docker-compose.yml
 
 # Run the pihole container
+mkdir -p $PIHOLE_ETC_PIHOLE_DIR
+mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
 docker run -d \
     --name=pihole \
     -h pihole \
@@ -71,8 +75,8 @@ docker run -d \
     -e PIHOLE_DOMAIN=$LOCAL_DOMAIN \
     -e VIRTUAL_HOST=pihole \
     -e WEBPASSWORD=$PIHOLE_PASSWORD \
-    -v $(pwd)/etc-pihole/:/etc/pihole/ \
-    -v $(pwd)/etc-dnsmasq.d/:/etc/dnsmasq.d/ \
+    -v $PIHOLE_ETC_PIHOLE_DIR:/etc/pihole/ \
+    -v $PIHOLE_ETC_DNSMASQ_DIR:/etc/dnsmasq.d/ \
     --cap-add NET_ADMIN \
     --restart=unless-stopped \
     pihole/pihole:2024.01.0
