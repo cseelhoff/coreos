@@ -56,7 +56,8 @@ NEXUS_DOCKER_IMAGE=sonatype/nexus3:3.64.0
 GITEA_DOCKER_IMAGE=gitea/gitea:1.21.4
 export TRAEFIK_DOCKER_IMAGE=traefik:v2.11
 export PHPLDAPADMIN_DOCKER_IMAGE=osixia/phpldapadmin:0.9.0
-export AWX_GHCR_IMAGE=ghcr.io/ansible/awx_devel:devel
+#export AWX_GHCR_IMAGE=ghcr.io/ansible/awx_devel:devel
+export AWX_GHCR_IMAGE=ansible/awx_devel:devel
 PIHOLE_ETC_PIHOLE_DIR=$(pwd)/bootstrap/etc-pihole/
 PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/bootstrap/etc-dnsmasq.d/
 # replace symbols that would need to be web encoded
@@ -110,11 +111,12 @@ GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g) 
 export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2)
 export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD)
-# if ~/.ssh/id_rsa does not exist, create it
-[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ''
+echo "Creating ssh keypair if it does not exist..."
+[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N '' >/dev/null
 export COREOS_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
 
 ### --- TEMPLATES --- ###
+echo "Generating templates"
 envsubst < bootstrap/traefik/docker-compose.yml.tpl > bootstrap/traefik/docker-compose.yml
 envsubst < bootstrap/traefik/data/config.yml.tpl > bootstrap/traefik/data/config.yml
 envsubst < bootstrap/traefik/data/traefik.yml.tpl > bootstrap/traefik/data/traefik.yml
@@ -129,8 +131,7 @@ echo $AWX_SECRET_KEY > coreos/awx/etc/tower/SECRET_KEY
 butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/coreos.ign
 
 ### --- MAIN --- ###
-echo "`date +"%Y-%m-%d %T"` -- deployment started!"
-# Run the pihole container for DNS and DHCP on bootstrap
+echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
 mkdir -p $PIHOLE_ETC_PIHOLE_DIR
 mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
 sudo docker run -d \
@@ -153,18 +154,21 @@ sudo docker run -d \
   $PIHOLE_DOCKER_IMAGE
 
 # Wait for pihole to start
-printf 'Waiting for pihole to start'
+printf 'Waiting for Pi-hole to start'
 until $(curl --output /dev/null --silent --head --fail $PIHOLE_LOGIN_URL); do
   printf '.'
   sleep 1
 done
 # rm cookies.txt if it exists
 [ -f cookies.txt ] && rm cookies.txt
+echo "Logging into Pi-hole"
 PIHOLE_TOKEN=$(curl -s -d "pw=$PIHOLE_PASSWORD" -c cookies.txt -X POST $PIHOLE_INDEX_URL | grep -oP '(?<=<div id="token" hidden>)(\S+)(?=<\/div>)' -m 1 | tr '\n' '\0' | jq -sRr @uri)
+echo "Obtained Pi-hole token: $PIHOLE_TOKEN"
 # Add DNS A record for pihole, nexus, traefik, and docker registry
 function add_dns_a_record() {
   local fqdn=$1
   local ip=$2
+  echo "Adding DNS A record for $fqdn with IP $ip"
   curl -s -d "action=add&ip=$ip&domain=$fqdn&token=$PIHOLE_TOKEN" -b cookies.txt -X POST $PIHOLE_CUSTOM_DNS_URL > /dev/null
 }
 add_dns_a_record $PIHOLE_BACKEND_FQDN $PIHOLE_IP
@@ -174,42 +178,46 @@ add_dns_a_record $TRAEFIK_FQDN $TRAEFIK_IP
 add_dns_a_record $PIHOLE_FRONTEND_FQDN $TRAEFIK_IP
 add_dns_a_record $NEXUS_FRONTEND_FQDN $TRAEFIK_IP
 add_dns_a_record $DOCKER_FRONTEND_FQDN $TRAEFIK_IP
-# set default DNS servers to cloudflare 1.1.1.1 and 1.0.0.1
+echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
 
-# set the bootstrap server to use the local pihole for DNS and set the default search domain
+echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 
-# create proxy network for traefik
+echo "Creating proxy network for Traefik"
 sudo docker network create proxy
 
+echo "Setting permissions to 600 on Traefik acme.json"
 chmod 600 bootstrap/traefik/data/acme.json
+
+echo "Starting Traefik"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 
-# install nexus into docker container
+echo "Starting Nexus"
 sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT --name nexus $NEXUS_DOCKER_IMAGE
 
 # change the default admin password
 # loop until NEXUS_TEMP_PASSWORD is not empty
-printf 'Waiting for nexus to start'
+printf 'Waiting for Nexus to start'
 while [ -z "$NEXUS_TEMP_PASSWORD" ]; do
   printf '.'
   sleep 1
-  NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password)
+  NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
 done
+echo "Changing Nexus password from: $NEXUS_TEMP_PASSWORD to: $NEXUS_PASSWORD"
 curl -u admin:$NEXUS_TEMP_PASSWORD -X PUT -d $NEXUS_PASSWORD -H "Content-Type: text/plain" $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password
 
-# use nexus api to set the active realms to LDAP, docker, and local
+echo "Setting active realms to LdapRealm, DockerToken, and NexusAuthenticatingRealm"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
     [
-      "NexusAuthenticatingRealm",
+      "LdapRealm",
       "DockerToken",
-      "LdapRealm"
+      "NexusAuthenticatingRealm"
     ]
   }' -X PUT $NEXUS_SERIVICE_REST_URL/security/realms/active
 
-# use nexus api to add a docker-proxy registry
+echo "Creating docker-proxy repository"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "name": "docker-proxy",
   "online": true,
@@ -238,7 +246,7 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   }
 }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
 
-# use nexus api to add a ghcr-proxy registry
+echo "Creating ghcr-proxy repository"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "name": "ghcr-proxy",
   "online": true,
@@ -267,7 +275,7 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   }
 }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
 
-# create a docker-hosted repository to pull from docker hub
+echo "Creating docker-hosted repository"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "name": "docker-hosted",
   "online": true,
@@ -281,7 +289,7 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   }
 }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/hosted
 
-# create a docker-group repository to combine repositories docker-proxy and docker-hosted
+echo "Creating docker-group repository for docker-hosted, docker-proxy, and ghcr-proxy"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
   \"name\": \"docker-group\",
   \"online\": true,
@@ -302,15 +310,12 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
   }
 }" -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/group
 
-# cache the docker images
+echo "Caching docker images in Nexus"
 docker pull $DOCKER_REGISTRY_URL/$NEXUS_DOCKER_IMAGE
 docker pull $DOCKER_REGISTRY_URL/$PORTAINER_DOCKER_IMAGE
 docker pull $DOCKER_REGISTRY_URL/$OPENLDAP_DOCKER_IMAGE
 docker pull $DOCKER_REGISTRY_URL/$TRAEFIK_DOCKER_IMAGE
-
-# TODO: proxy or reupload the images to the docker-hosted repository
-# BUILD THE AWX IMAGE and UI
-docker pull $AWX_GHCR_IMAGE
+docker pull $DOCKER_REGISTRY_URL/$AWX_GHCR_IMAGE
 
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
 govc about -u $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
