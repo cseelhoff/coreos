@@ -4,7 +4,7 @@ http:
     pihole:
       entryPoints:
         - "https"
-      rule: "Host(`${PIHOLE_FQDN}`)"
+      rule: "Host(`${PIHOLE_FRONTEND_FQDN}`)"
       middlewares:
         - redirectregex-pihole
         - default-headers
@@ -12,13 +12,41 @@ http:
         - https-redirectscheme
       tls: {}
       service: pihole
+    nexus:
+      entryPoints:
+        - "https"
+      rule: "Host(`${NEXUS_FRONTEND_FQDN}`)"
+      middlewares:
+        - default-headers
+        - https-redirectscheme
+      tls: {}
+      service: nexus
+    docker_registry:
+      entryPoints:
+        - "https"
+      rule: "Host(`${DOCKER_REGISTRY_FRONTEND_FQDN}`)"
+      middlewares:
+        - default-headers
+        - https-redirectscheme
+      tls: {}
+      service: docker_registry
 #endregion
 #region services
   services:
     pihole:
       loadBalancer:
         servers:
-          - url: "${PIHOLE_FQDN_BASE_URL}"
+          - url: "${PIHOLE_BACKEND_URL}"
+        passHostHeader: true
+    nexus:
+      loadBalancer:
+        servers:
+          - url: "${NEXUS_BACKEND_URL}"
+        passHostHeader: true
+    docker_registry:
+      loadBalancer:
+        servers:
+          - url: "${DOCKER_REGISTRY_BACKEND_URL}"
         passHostHeader: true
 #endregion
   middlewares:

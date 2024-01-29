@@ -18,11 +18,11 @@
 [ -f .env ] && source .env
 keys=("CF_DNS_API_TOKEN" "GOVC_PASSWORD" "COREOS_ADMIN_PASSWORD")
 for key in "${keys[@]}"; do
-    # Check if the key exists in the environment
-    if [ -z "${!key}" ]; then
-        read -p "Enter a value for $key: " value
-        echo "export $key='$value'" >> .env
-    fi
+  # Check if the key exists in the environment
+  if [ -z "${!key}" ]; then
+    read -p "Enter a value for $key: " value
+    echo "export $key='$value'" >> .env
+  fi
 done
 source .env
 
@@ -32,10 +32,11 @@ export ORGANIZATION_NAME='177th Cyber Protection Team'
 export DOMAIN_NAME='177cpt.com'
 export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
 export TIMEZONE=America/Chicago
-DNS_SERVER='10.0.1.44'
-DHCP_ROUTER='10.0.1.2'
-DHCP_START='10.0.1.10'
-DHCP_END='10.0.1.50'
+DNS_SERVER_IP='10.0.1.44'
+BOOTSTRAP_IP=$DNS_SERVER_IP
+DHCP_ROUTER_IP='10.0.1.2'
+DHCP_START_IP='10.0.1.10'
+DHCP_END_IP='10.0.1.50'
 export GOVC_URL="vsphere2.us.177cpt.com"
 export GOVC_USERNAME="Administrator@VSPHERE.LOCAL"
 export GOVC_HOST="10.0.1.31"
@@ -69,26 +70,42 @@ export DJANGO_SUPERUSER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 export AWX_POSTGRES_PASSWORD="rzabMdUaDNuyQGmnYUQN" #$(openssl rand -base64 32)
 export BROADCAST_WEBSOCKET_SECRET="QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y=" #$(openssl rand -base64 32)
 export AWX_SECRET_KEY="JDqxKuQemHEajsZVZFQs" #$(openssl rand -base64 32)
-export PIHOLE_FQDN=pihole.$DOMAIN_NAME
-export NEXUS_FQDN=nexus.$DOMAIN_NAME
-export TRAEFIK_FQDN=traefik.$DOMAIN_NAME
-export DOCKER_FQDN=docker.$DOMAIN_NAME
+export PIHOLE_SHORTNAME=pihole
+export NEXUS_SHORTNAME=nexus
+export TRAEFIK_SHORTNAME=traefik
+export DOCKER_SHORTNAME=docker
+
 export PORTAINER_PORT=9000
-export PIHOLE_PORT=8001
+PIHOLE_PORT=8001
 NEXUS_PORT=8081
-DOCKER_REGISTRY_PORT=5000
+DOCKER_REGISTRY_PORT=8002
 VCENTER_LIBRARY_NAME=library
 
 ### --- AUTO-GENERATED VARIABLES --- ###
-export PIHOLE_FQDN_BASE_URL=http://$PIHOLE_FQDN:$PIHOLE_PORT
-export PIHOLE_LOCALHOST_BASE_URL=http://localhost:$PIHOLE_PORT
-DOCKER_REGISTRY_HOST=https://$DOCKER_FQDN
+
+export PIHOLE_FRONTEND_FQDN=$PIHOLE_SHORTNAME.$DOMAIN_NAME
+export NEXUS_FRONTEND_FQDN=$NEXUS_SHORTNAME.$DOMAIN_NAME
+export DOCKER_REGISTRY_FRONTEND_FQDN=$DOCKER_SHORTNAME.$DOMAIN_NAME
+
+export TRAEFIK_FQDN=$TRAEFIK_SHORTNAME.$DOMAIN_NAME
+export PIHOLE_BACKEND_FQDN=$PIHOLE_SHORTNAME-backend01.$DOMAIN_NAME
+export NEXUS_BACKEND_FQDN=$NEXUS_SHORTNAME-backend01.$DOMAIN_NAME
+export DOCKER_REGISTRY_BACKEND_FQDN=$DOCKER_SHORTNAME-backend01.$DOMAIN_NAME
+TRAEFIK_IP=$BOOTSTRAP_IP
+PIHOLE_IP=$BOOTSTRAP_IP
+NEXUS_IP=$BOOTSTRAP_IP
+DOCKER_REGISTRY_IP=$BOOTSTRAP_IP
+
+export PIHOLE_BACKEND_URL=http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT
+export NEXUS_BACKEND_URL=http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT
+export DOCKER_REGISTRY_BACKEND_URL=https://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT
+PIHOLE_LOCALHOST_BASE_URL=http://localhost:$PIHOLE_PORT
 PIHOLE_LOGIN_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/login.php
 PIHOLE_INDEX_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/index.php
 PIHOLE_SETTINGS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns
 PIHOLE_CUSTOM_DNS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php
-NEXUS_SERIVICE_REST_URL=https://$NEXUS_FQDN/service/rest/v1
-NEXUS_CREDS=admin:$NEXUS_PASSWORD
+NEXUS_SERIVICE_REST_URL=https://$NEXUS_FQDN_FRONTEND/service/rest/v1
+DOCKER_REGISTRY_URL=https://$DOCKER_REGISTRY_FQDN_FRONTEND
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g) 
 export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2)
@@ -117,42 +134,46 @@ echo "`date +"%Y-%m-%d %T"` -- deployment started!"
 mkdir -p $PIHOLE_ETC_PIHOLE_DIR
 mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
 sudo docker run -d \
-    --name=pihole \
-    -h pihole \
-    -p 53:53/tcp -p 53:53/udp -p 67:67/udp -p $PIHOLE_PORT:80/tcp \
-    -e DNSMASQ_LISTENING=all \
-    -e TZ=$TIMEZONE \
-    -e PIHOLE_DNS_=$DNS_SERVER \
-    -e DHCP_ROUTER=$DHCP_ROUTER \
-    -e DHCP_START=$DHCP_START \
-    -e DHCP_END=$DHCP_END \
-    -e PIHOLE_DOMAIN=$DOMAIN_NAME \
-    -e VIRTUAL_HOST=pihole \
-    -e WEBPASSWORD=$PIHOLE_PASSWORD \
-    -v $PIHOLE_ETC_PIHOLE_DIR:/etc/pihole/ \
-    -v $PIHOLE_ETC_DNSMASQ_DIR:/etc/dnsmasq.d/ \
-    --cap-add NET_ADMIN \
-    --restart=unless-stopped \
-    $PIHOLE_DOCKER_IMAGE
+  --name=pihole \
+  -h pihole \
+  -p 53:53/tcp -p 53:53/udp -p 67:67/udp -p $PIHOLE_PORT:80/tcp \
+  -e DNSMASQ_LISTENING=all \
+  -e TZ=$TIMEZONE \
+  -e PIHOLE_DNS_=$DNS_SERVER_IP \
+  -e DHCP_ROUTER_IP=$DHCP_ROUTER_IP \
+  -e DHCP_START_IP=$DHCP_START_IP \
+  -e DHCP_END_IP=$DHCP_END_IP \
+  -e PIHOLE_DOMAIN=$DOMAIN_NAME \
+  -e VIRTUAL_HOST=pihole \
+  -e WEBPASSWORD=$PIHOLE_PASSWORD \
+  -v $PIHOLE_ETC_PIHOLE_DIR:/etc/pihole/ \
+  -v $PIHOLE_ETC_DNSMASQ_DIR:/etc/dnsmasq.d/ \
+  --cap-add NET_ADMIN \
+  --restart=unless-stopped \
+  $PIHOLE_DOCKER_IMAGE
 
 # Wait for pihole to start
 printf 'Waiting for pihole to start'
 until $(curl --output /dev/null --silent --head --fail $PIHOLE_LOGIN_URL); do
-    printf '.'
-    sleep 5
+  printf '.'
+  sleep 1
 done
 # rm cookies.txt if it exists
 [ -f cookies.txt ] && rm cookies.txt
 PIHOLE_TOKEN=$(curl -s -d "pw=$PIHOLE_PASSWORD" -c cookies.txt -X POST $PIHOLE_INDEX_URL | grep -oP '(?<=<div id="token" hidden>)(\S+)(?=<\/div>)' -m 1 | tr '\n' '\0' | jq -sRr @uri)
-# Add DNS A record for pihole, nexus, traefik
+# Add DNS A record for pihole, nexus, traefik, and docker registry
 function add_dns_a_record() {
-    local fqdn=$1
-    curl -s -d "action=add&ip=$DNS_SERVER&domain=$fqdn&token=$PIHOLE_TOKEN" -b cookies.txt -X POST $PIHOLE_CUSTOM_DNS_URL
+  local fqdn=$1
+  local ip=$2
+  curl -s -d "action=add&ip=$ip&domain=$fqdn&token=$PIHOLE_TOKEN" -b cookies.txt -X POST $PIHOLE_CUSTOM_DNS_URL > /dev/null
 }
-add_dns_a_record $PIHOLE_FQDN
-add_dns_a_record $NEXUS_FQDN
-add_dns_a_record $TRAEFIK_FQDN
-add_dns_a_record $DOCKER_FQDN
+add_dns_a_record $PIHOLE_BACKEND_FQDN $PIHOLE_IP
+add_dns_a_record $NEXUS_BACKEND_FQDN $NEXUS_IP
+add_dns_a_record $DOCKER_BACKEND_FQDN $DOCKER_REGISTRY_IP
+add_dns_a_record $TRAEFIK_FQDN $TRAEFIK_IP
+add_dns_a_record $PIHOLE_FRONTEND_FQDN $TRAEFIK_IP
+add_dns_a_record $NEXUS_FRONTEND_FQDN $TRAEFIK_IP
+add_dns_a_record $DOCKER_FRONTEND_FQDN $TRAEFIK_IP
 # set default DNS servers to cloudflare 1.1.1.1 and 1.0.0.1
 curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
 
@@ -167,38 +188,125 @@ chmod 600 bootstrap/traefik/data/acme.json
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 
 # install nexus into docker container
-docker run -d -p $NEXUS_PORT:$NEXUS_PORT --name nexus $NEXUS_DOCKER_IMAGE
+sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT --name nexus $NEXUS_DOCKER_IMAGE
 
 # change the default admin password
-NEXUS_TEMP_PASSWORD=$(docker exec -it nexus cat /nexus-data/admin.password)
-curl -v -u admin:$NEXUS_TEMP_PASSWORD -X PUT -d $NEXUS_PASSWORD -H "Content-Type: text/plain" $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password
+# loop until NEXUS_TEMP_PASSWORD is not empty
+printf 'Waiting for nexus to start'
+while [ -z "$NEXUS_TEMP_PASSWORD" ]; do
+  printf '.'
+  sleep 1
+  NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password)
+done
+curl -u admin:$NEXUS_TEMP_PASSWORD -X PUT -d $NEXUS_PASSWORD -H "Content-Type: text/plain" $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password
 
-# use nexus api to add a docker-hosted registry
-curl -v -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
-  "name": "docker-hosted",
-  "type": "groovy",
-  "content": "repository.createDockerHosted('docker-hosted')"
-}' -X POST $NEXUS_SERIVICE_REST_URL/script
+# use nexus api to set the active realms to LDAP, docker, and local
+curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
+    [
+      "NexusAuthenticatingRealm",
+      "DockerToken",
+      "LdapRealm"
+    ]
+  }' -X PUT $NEXUS_SERIVICE_REST_URL/security/realms/active
 
-# create a docker-proxy repository to pull from docker hub
-curl -v -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
+# use nexus api to add a docker-proxy registry
+curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "name": "docker-proxy",
-  "type": "groovy",
-  "content": "repository.createDockerProxy('docker-proxy', 'https://registry-1.docker.io')"
-}' -X POST $NEXUS_SERIVICE_REST_URL/script
+  "online": true,
+  "storage": {
+    "strictContentTypeValidation": true
+  },
+  "proxy": {
+    "remoteUrl": "https://registry-1.docker.io",
+    "contentMaxAge": 1440,
+    "metadataMaxAge": 1440
+  },
+  "negativeCache": {
+    "enabled": true,
+    "timeToLive": 1440
+  },
+  "httpClient": {
+    "blocked": false,
+    "autoBlock": false
+  },
+  "docker": {
+    "v1Enabled": false,
+    "forceBasicAuth": false
+  },
+  "dockerProxy": {
+    "indexType": "HUB"
+  }
+}' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
 
-# create a docker-group repository to pull from docker-proxy and docker-hosted on port 5000 and allow anonymous access
-curl -v -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
-  "name": "docker-group",
-  "type": "groovy",
-  "content": "repository.createDockerGroup('docker-group', ['docker-hosted', 'docker-proxy'], '$DOCKER_REGISTRY_PORT', true)"
-}' -X POST $NEXUS_SERIVICE_REST_URL/script
+# use nexus api to add a ghcr-proxy registry
+curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
+  "name": "ghcr-proxy",
+  "online": true,
+  "storage": {
+    "strictContentTypeValidation": true
+  },
+  "proxy": {
+    "remoteUrl": "https://ghcr.io",
+    "contentMaxAge": 1440,
+    "metadataMaxAge": 1440
+  },
+  "negativeCache": {
+    "enabled": true,
+    "timeToLive": 1440
+  },
+  "httpClient": {
+    "blocked": false,
+    "autoBlock": false
+  },
+  "docker": {
+    "v1Enabled": false,
+    "forceBasicAuth": false
+  },
+  "dockerProxy": {
+    "indexType": "REGISTRY"
+  }
+}' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
+
+# create a docker-hosted repository to pull from docker hub
+curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
+  "name": "docker-hosted",
+  "online": true,
+  "storage": {
+    "strictContentTypeValidation": true,
+    "writePolicy": "ALLOW"
+  },
+  "docker": {
+    "v1Enabled": false,
+    "forceBasicAuth": false
+  }
+}' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/hosted
+
+# create a docker-group repository to combine repositories docker-proxy and docker-hosted
+curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
+  \"name\": \"docker-group\",
+  \"online\": true,
+  \"storage\": {
+    \"strictContentTypeValidation\": true
+  },
+  \"group\": {
+    \"memberNames\": [
+      \"docker-hosted\",
+      \"docker-proxy\",
+      \"ghcr-proxy\"
+    ]
+  },
+  \"docker\": {
+    \"v1Enabled\": false,
+    \"forceBasicAuth\": false,
+    \"httpsPort\": $DOCKER_REGISTRY_PORT
+  }
+}" -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/group
 
 # cache the docker images
-docker pull $DOCKER_REGISTRY_HOST/$NEXUS_DOCKER_IMAGE
-docker pull $DOCKER_REGISTRY_HOST/$PORTAINER_DOCKER_IMAGE
-docker pull $DOCKER_REGISTRY_HOST/$OPENLDAP_DOCKER_IMAGE
-docker pull $DOCKER_REGISTRY_HOST/$TRAEFIK_DOCKER_IMAGE
+docker pull $DOCKER_REGISTRY_URL/$NEXUS_DOCKER_IMAGE
+docker pull $DOCKER_REGISTRY_URL/$PORTAINER_DOCKER_IMAGE
+docker pull $DOCKER_REGISTRY_URL/$OPENLDAP_DOCKER_IMAGE
+docker pull $DOCKER_REGISTRY_URL/$TRAEFIK_DOCKER_IMAGE
 
 # TODO: proxy or reupload the images to the docker-hosted repository
 # BUILD THE AWX IMAGE and UI
