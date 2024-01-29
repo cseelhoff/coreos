@@ -1,19 +1,5 @@
 #!/bin/sh
 
-### --- possible requirements --- ###
-#sudo apt install openssh-server
-
-#echo -e "[Resolve]\nDNS=1.1.1.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
-#sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
-#sudo systemctl disable systemd-resolved && sudo systemctl stop systemd-resolved
-#sudo apt install -y apache2-utils whois jq curl docker.io git && \
-#curl -L -o - https://github.com/vmware/govmomi/releases/download/v0.34.2/govc_Linux_x86_64.tar.gz | sudo tar -C /usr/local/bin -xvzf - govc && \
-#sudo curl -L https://github.com/coreos/butane/releases/download/v0.19.0/butane-x86_64-unknown-linux-gnu --output /usr/local/bin/butane && sudo chmod +x /usr/local/bin/butane && \
-#sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
-#sudo chmod 755 /usr/local/bin/docker-compose
-#git clone https://github.com/cseelhoff/coreos && cd coreos
-#nano bootstrap/traefik/data/acme.json
-
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
 [ -f .env ] && source .env
@@ -84,11 +70,9 @@ DOCKER_REGISTRY_PORT=8002
 VCENTER_LIBRARY_NAME=library
 
 ### --- AUTO-GENERATED VARIABLES --- ###
-
 export PIHOLE_FRONTEND_FQDN=$PIHOLE_SHORTNAME.$DOMAIN_NAME
 export NEXUS_FRONTEND_FQDN=$NEXUS_SHORTNAME.$DOMAIN_NAME
 export DOCKER_REGISTRY_FRONTEND_FQDN=$DOCKER_SHORTNAME.$DOMAIN_NAME
-
 export TRAEFIK_FQDN=$TRAEFIK_SHORTNAME.$DOMAIN_NAME
 export PIHOLE_BACKEND_FQDN=$PIHOLE_SHORTNAME-backend01.$DOMAIN_NAME
 export NEXUS_BACKEND_FQDN=$NEXUS_SHORTNAME-backend01.$DOMAIN_NAME
@@ -97,7 +81,6 @@ TRAEFIK_IP=$BOOTSTRAP_IP
 PIHOLE_IP=$BOOTSTRAP_IP
 NEXUS_IP=$BOOTSTRAP_IP
 DOCKER_REGISTRY_IP=$BOOTSTRAP_IP
-
 export PIHOLE_BACKEND_URL=http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT
 export NEXUS_BACKEND_URL=http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT
 export DOCKER_REGISTRY_BACKEND_URL=http://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT
@@ -107,7 +90,6 @@ PIHOLE_INDEX_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/index.php
 PIHOLE_SETTINGS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns
 PIHOLE_CUSTOM_DNS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FRONTEND_FQDN/service/rest/v1
-#DOCKER_REGISTRY_URL=https://$DOCKER_REGISTRY_FRONTEND_FQDN
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g) 
 export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2)
@@ -160,8 +142,6 @@ until $(curl --output /dev/null --silent --head --fail $PIHOLE_LOGIN_URL); do
   printf '.'
   sleep 1
 done
-# rm cookies.txt if it exists
-[ -f cookies.txt ] && rm cookies.txt
 echo "Logging into Pi-hole"
 PIHOLE_TOKEN=$(curl -s -d "pw=$PIHOLE_PASSWORD" -c cookies.txt -X POST $PIHOLE_INDEX_URL | grep -oP '(?<=<div id="token" hidden>)(\S+)(?=<\/div>)' -m 1 | tr '\n' '\0' | jq -sRr @uri)
 echo "Obtained Pi-hole token: $PIHOLE_TOKEN"
@@ -185,37 +165,35 @@ curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1
 echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
-
 echo "Creating proxy network for Traefik"
 sudo docker network create proxy
-
 echo "Setting permissions to 600 on Traefik acme.json"
 chmod 600 bootstrap/traefik/data/acme.json
-
 echo "Starting Traefik"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
-
-echo "Starting Nexus"
-sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus $NEXUS_DOCKER_IMAGE
-
-# change the default admin password
-# loop until NEXUS_TEMP_PASSWORD is not empty
+sudo docker volume create --name nexus-data
+if [ -f backup/nexus-backup.7z ]; then
+  printf "Restoring Nexus from backup"
+  sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup crazymax/7zip 7z x -bsp1 /backup/nexus-backup.7z -o/nexus-data
+fi
+printf "Starting Nexus"
+sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $NEXUS_DOCKER_IMAGE
 printf 'Waiting for Nexus to start'
-while [ -z "$NEXUS_TEMP_PASSWORD" ]; do
+until $(curl -u admin:$NEXUS_TEMP_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
   printf '.'
   sleep 1
   NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
 done
+# change the default admin password
+NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
 echo "Changing Nexus password from: $NEXUS_TEMP_PASSWORD to: $NEXUS_PASSWORD"
 curl -u admin:$NEXUS_TEMP_PASSWORD -X PUT -d $NEXUS_PASSWORD -H "Content-Type: text/plain" $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password
-
 echo "Setting active realms to LdapRealm, DockerToken, and NexusAuthenticatingRealm"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '[
     "LdapRealm",
     "DockerToken",
     "NexusAuthenticatingRealm"
   ]' -X PUT $NEXUS_SERIVICE_REST_URL/security/realms/active
-
 echo "Creating docker-hosted repository"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "name": "docker-hosted",
@@ -230,7 +208,6 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
     "forceBasicAuth": false
   }
 }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/hosted
-
 echo "Creating docker-proxy repository"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "name": "docker-proxy",
@@ -260,7 +237,6 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
     "indexType": "HUB"
   }
 }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
-
 echo "Creating ghcr-proxy repository"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "name": "ghcr-proxy",
@@ -290,7 +266,6 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
     "indexType": "REGISTRY"
   }
 }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
-
 echo "Creating docker-group repository for docker-hosted, docker-proxy, and ghcr-proxy"
 curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
   \"name\": \"docker-group\",
@@ -313,20 +288,38 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
   }
 }" -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/group
 
-echo "Caching docker images in Nexus"
+printf 'Removing local docker images cache'
+sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
+sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
+sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
+sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
+sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
+printf 'Caching docker images in Nexus'
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
 
+#When stopping, be sure to allow sufficient time for the databases to fully shut down.
+printf 'Stopping Nexus to create backup'
+sudo docker stop --time=120 nexus
+printf 'Creating Nexus backup'
+mkdir backup
+sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup crazymax/7zip 7z a -bsp1 /backup/nexus-backup.7z /nexus-data/* 
+#sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -cvf /backup/nexus-backup.tar.gz ."
+printf 'Starting Nexus'
+sudo docker start nexus
+printf 'Bootstrap complete!'
+
+printf 'Logging into vCenter'
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
 govc about -u $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 govc session.login -u $GOVC_CONNECTION_STRING
 # why this fixes things, we don't know...
 govc library.ls -u $GOVC_CONNECTION_STRING > /dev/null
 
-# use govc library.ls -json to check if the library exists
+printf 'Creating library and importing OVA'
 if govc library.ls -u $GOVC_CONNECTION_STRING -json | jq -r '.[].name' | grep -q $VCENTER_LIBRARY_NAME; then
   echo "Library name: $VCENTER_LIBRARY_NAME already exists"
 else
@@ -334,7 +327,7 @@ else
   govc library.create -u $GOVC_CONNECTION_STRING -ds=$GOVC_DATASTORE $VCENTER_LIBRARY_NAME
 fi
 
-# check if the OVA already exists in the library
+printf 'Checking if OVA already exists in library'
 if govc library.ls -u $GOVC_CONNECTION_STRING $VCENTER_LIBRARY_NAME/* | grep -q $COREOS_OVA_NAME; then
   echo "OVA $COREOS_OVA_NAME already exists in library $VCENTER_LIBRARY_NAME"
 else
@@ -342,6 +335,7 @@ else
   govc library.import -u $GOVC_CONNECTION_STRING -n=$COREOS_OVA_NAME $VCENTER_LIBRARY_NAME $COREOS_OVA_URL
 fi
 
+printf 'Deploying VM from OVA'
 govc library.deploy -u $GOVC_CONNECTION_STRING -host=$GOVC_HOST /$VCENTER_LIBRARY_NAME/$COREOS_OVA_NAME $GOVC_VM
 govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data=$(cat coreos.ign | base64 -w0)"
 govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data.encoding=base64"
