@@ -12,7 +12,7 @@
 #sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
 #sudo chmod 755 /usr/local/bin/docker-compose
 #git clone https://github.com/cseelhoff/coreos && cd coreos
-#nano boostrap/traefik/data/acme.json
+#nano bootstrap/traefik/data/acme.json
 
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
