@@ -75,16 +75,25 @@ NEXUS_SERIVICE_REST_URL=https://$NEXUS_FQDN/service/rest/v1
 NEXUS_CREDS=admin:$NEXUS_PASSWORD
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD")
+export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2)
+export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD)
+# if ~/.ssh/id_rsa does not exist, create it
+[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ''
+export COREOS_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
 
 ### --- TEMPLATES --- ###
 envsubst < bootstrap/traefik/docker-compose.yml.tpl > bootstrap/traefik/docker-compose.yml
-envsubst < coreos/guacamole/docker-compose.yml.tpl > coreos/guacamole/docker-compose.yml
-envsubst < coreos/openldap/docker-compose.yml.tpl > coreos/openldap/docker-compose.yml
-envsubst < coreos/coreos.bu.tpl > coreos/coreos.bu
+envsubst < bootstrap/traefik/data/config.yml.tpl > bootstrap/traefik/data/config.yml
+envsubst < bootstrap/traefik/data/traefik.yml.tpl > bootstrap/traefik/data/traefik.yml
+envsubst < coreos/awx/docker-compose.yml.tpl > coreos/awx/docker-compose.yml
 envsubst < coreos/awx/etc/tower/conf.d/database.py.tpl > coreos/awx/etc/tower/conf.d/database.py
 envsubst < coreos/awx/etc/tower/conf.d/websocket_secret.py.tpl > coreos/awx/etc/tower/conf.d/websocket_secret.py
+envsubst < coreos/guacamole/docker-compose.yml.tpl > coreos/guacamole/docker-compose.yml
+envsubst < coreos/openldap/docker-compose.yml.tpl > coreos/openldap/docker-compose.yml
+envsubst < coreos/portainer/deploy-stack.sh.tpl > coreos/portainer/deploy-stack.sh
+envsubst < coreos/coreos.bu.tpl > coreos/coreos.bu
 echo $AWX_SECRET_KEY > coreos/awx/etc/tower/SECRET_KEY
-
+butane --files-dir ./ --pretty --strict coreos.bu --output coreos.ign
 
 ### --- MAIN --- ###
 echo "`date +"%Y-%m-%d %T"` -- deployment started!"
@@ -165,6 +174,7 @@ curl -v -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "content": "repository.createDockerGroup('docker-group', ['docker-hosted', 'docker-proxy'], '$DOCKER_REGISTRY_PORT', true)"
 }' -X POST $NEXUS_SERIVICE_REST_URL/script
 
+# cache the docker images
 docker pull $DOCKER_REGISTRY_HOST/$NEXUS_DOCKER_IMAGE
 docker pull $DOCKER_REGISTRY_HOST/$PORTAINER_DOCKER_IMAGE
 docker pull $DOCKER_REGISTRY_HOST/$OPENLDAP_DOCKER_IMAGE
@@ -174,31 +184,11 @@ docker pull $DOCKER_REGISTRY_HOST/$TRAEFIK_DOCKER_IMAGE
 # BUILD THE AWX IMAGE and UI
 docker pull $AWX_GHCR_IMAGE
 
-
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
 govc about -u $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
-# init login
 govc session.login -u $GOVC_CONNECTION_STRING
 # why this fixes things, we don't know...
 govc library.ls -u $GOVC_CONNECTION_STRING > /dev/null
-
-export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD)
-# if ~/.ssh/id_rsa does not exist, create it
-[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ''
-export COREOS_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
-envsubst < coreos/coreos.bu.tpl > coreos/coreos.bu
-
-# Escape special characters in the password to use in sed
-ESCAPED_PORTAINER_PASSWORD=$(echo "$PORTAINER_PASSWORD" | sed -e 's/[\/&]/\\&/g')
-# Replace the existing password in portainer/deploy-portainer.sh with the new password
-envsubst < coreos/portainer/deploy-stack.sh.tpl > coreos/portainer/deploy-stack.sh
-PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2)
-# replace all of the $ symbols in the bcrypt hash with two consecutive $$ symbols
-ESCAPED_PORTAINER_BCRYPT=$(echo "$PORTAINER_BCRYPT" | sed -e 's/\$/\$\$/g')
-ESCAPED_PORTAINER_BCRYPT=$(echo "$ESCAPED_PORTAINER_BCRYPT" | sed -e 's/[\/&]/\\&/g')
-sed -i "s/--admin-password '[^']*/--admin-password '$ESCAPED_PORTAINER_BCRYPT/g" ./coreos.bu
-
-butane --files-dir ./ --pretty --strict coreos.bu --output coreos.ign
 
 # use govc library.ls -json to check if the library exists
 if govc library.ls -u $GOVC_CONNECTION_STRING -json | jq -r '.[].name' | grep -q $VCENTER_LIBRARY_NAME; then

@@ -70,7 +70,7 @@ systemd:
         ExecStartPre=-/usr/bin/docker rm portainer
         ExecStartPre=/usr/bin/docker pull portainer/portainer-ce
         ExecStart=-/usr/bin/mkdir -p /var/portainer/data
-        ExecStart=/usr/bin/docker run --privileged=true -d -p ${PORTAINER_PORT}:9000 --name portainer --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data ${PORTAINER_DOCKER_IMAGE} --admin-password '${PORTAINER_PASSWORD}'
+        ExecStart=/usr/bin/docker run --privileged=true -d -p ${PORTAINER_PORT}:9000 --name portainer --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data ${PORTAINER_DOCKER_IMAGE} --admin-password '${PORTAINER_BCRYPT}'
         ExecStop=/usr/bin/docker stop -t 15 portainer
         
         [Install]
