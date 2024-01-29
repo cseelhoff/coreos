@@ -1,8 +1,10 @@
 .env
+bootstrap/traefik/docker-compose.yml
 bootstrap/traefik/data/config.yml
 bootstrap/traefik/data/traefik.yml
 coreos/coreos.bu
 coreos/coreos.ign
+coreos/awx/docker-compose.yml
 coreos/guacamole/docker-compose.yml
 coreos/openldap/docker-compose.yml
 coreos/portainer/deploy-stack.sh

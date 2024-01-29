@@ -6,7 +6,7 @@ services:
     environment:
       LDAP_LOG_LEVEL: "256"
       LDAP_ORGANISATION: "177 CPT"
-      LDAP_DOMAIN: "us.177cpt.com"
+      LDAP_DOMAIN: "${DOMAINNAME}"
       LDAP_BASE_DN: ""
       LDAP_ADMIN_PASSWORD: "admin"
       LDAP_CONFIG_PASSWORD: "config"

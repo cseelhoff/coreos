@@ -1,5 +1,6 @@
 #!/bin/sh
 
+### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
 [ -f .env ] && source .env
 keys=("CF_API_KEY" "GOVC_PASSWORD" "COREOS_ADMIN_PASSWORD")
@@ -12,10 +13,9 @@ for key in "${keys[@]}"; do
 done
 source .env
 
-echo "`date +"%Y-%m-%d %T"` -- deployment started!"
-DOMAIN='177cpt.com'
+### --- VARIABLES --- ###
+DOMAIN_NAME='177cpt.com'
 CF_API_EMAIL=cseelhoff@gmail.com
-
 TIMEZONE=America/Chicago
 DNS_SERVER='10.0.1.44'
 DHCP_ROUTER='10.0.1.2'
@@ -30,36 +30,41 @@ export GOVC_NETWORK="Internal Management"
 export GOVC_INSECURE=true
 export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
 
+### --- OPTIONAL VARIABLES --- ###
+COREOS_OVA_URL="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova",
+COREOS_OVA_NAME="fedora-coreos-39.20240104.3.0-vmware.x86_64"
+PIHOLE_DOCKER_IMAGE=pihole/pihole:2024.01.0
 PIHOLE_BASE_URL=http://localhost/admin
-PIHOLE_LOGIN_URL=$PIHOLE_BASE_URL/login.php
-PIHOLE_INDEX_URL=$PIHOLE_BASE_URL/index.php
-PIHOLE_CUSTOM_DNS_URL=$PIHOLE_BASE_URL/scripts/pi-hole/php/customdns.php
-PIHOLE_PASSWORD=$(openssl rand -base64 32)
 PIHOLE_ETC_PIHOLE_DIR=$(pwd)/etc-pihole/
 PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/etc-dnsmasq.d/
+PIHOLE_PASSWORD=$(openssl rand -base64 32)
 TRAEFIK_PASSWORD=$(openssl rand -base64 32)
 NEXUS_PASSWORD=$(openssl rand -base64 32)
 export PORTAINER_PASSWORD=$(openssl rand -base64 32)
-PIHOLE_FQDN=pihole.$DOMAIN
-NEXUS_FQDN=nexus.$DOMAIN
-TRAEFIK_FQDN=traefik.$DOMAIN
-
-NEXUS_HOST=localhost
+PIHOLE_FQDN=pihole.$DOMAIN_NAME
+NEXUS_FQDN=nexus.$DOMAIN_NAME
+TRAEFIK_FQDN=traefik.$DOMAIN_NAME
 NEXUS_PORT=8081
-NEXUS_URL=http://$NEXUS_HOST:$NEXUS_PORT
-NEXUS_SERIVICE_REST_URL=$NEXUS_URL/service/rest/v1
-NEXUS_CREDS=admin:$NEXUS_PASSWORD
 DOCKER_REGISTRY_PORT=5000
+VCENTER_LIBRARY_NAME=library
 
-LIBRARY_NAME="library",
-OVA_URL="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova",
-OVA_NAME="fedora-coreos-39.20240104.3.0-vmware.x86_64"
-GOVC_CONNECTION_STRING=$(echo $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL)
-
+### --- AUTO-GENERATED VARIABLES --- ###
+PIHOLE_LOGIN_URL=$PIHOLE_BASE_URL/login.php
+PIHOLE_INDEX_URL=$PIHOLE_BASE_URL/index.php
+PIHOLE_CUSTOM_DNS_URL=$PIHOLE_BASE_URL/scripts/pi-hole/php/customdns.php
+NEXUS_SERIVICE_REST_URL=https://$NEXUS_FQDN/service/rest/v1
+NEXUS_CREDS=admin:$NEXUS_PASSWORD
+GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD")
-envsubst < docker-compose.yml.tpl > docker-compose.yml
 
-# Run the pihole container
+### --- TEMPLATES --- ###
+envsubst < bootstrap/traefik/docker-compose.yml.tpl > bootstrap/traefik/docker-compose.yml
+envsubst < coreos/guacamole/docker-compose.yml.tpl > coreos/guacamole/docker-compose.yml
+envsubst < coreos/openldap/docker-compose.yml.tpl > coreos/openldap/docker-compose.yml
+
+### --- MAIN --- ###
+echo "`date +"%Y-%m-%d %T"` -- deployment started!"
+# Run the pihole container for DNS and DHCP on bootstrap
 mkdir -p $PIHOLE_ETC_PIHOLE_DIR
 mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
 docker run -d \
@@ -72,14 +77,14 @@ docker run -d \
     -e DHCP_ROUTER=$DHCP_ROUTER \
     -e DHCP_START=$DHCP_START \
     -e DHCP_END=$DHCP_END \
-    -e PIHOLE_DOMAIN=$LOCAL_DOMAIN \
+    -e PIHOLE_DOMAIN=$DOMAIN_NAME \
     -e VIRTUAL_HOST=pihole \
     -e WEBPASSWORD=$PIHOLE_PASSWORD \
     -v $PIHOLE_ETC_PIHOLE_DIR:/etc/pihole/ \
     -v $PIHOLE_ETC_DNSMASQ_DIR:/etc/dnsmasq.d/ \
     --cap-add NET_ADMIN \
     --restart=unless-stopped \
-    pihole/pihole:2024.01.0
+    $PIHOLE_DOCKER_IMAGE
 
 # Wait for pihole to start
 printf 'Waiting for pihole to start'
@@ -162,22 +167,22 @@ sed -i "s/--admin-password '[^']*/--admin-password '$ESCAPED_PORTAINER_BCRYPT/g"
 butane --files-dir ./ --pretty --strict coreos.bu --output coreos.ign
 
 # use govc library.ls -json to check if the library exists
-if govc library.ls -u $GOVC_CONNECTION_STRING -json | jq -r '.[].name' | grep -q $LIBRARY_NAME; then
-  echo "Library name: $LIBRARY_NAME already exists"
+if govc library.ls -u $GOVC_CONNECTION_STRING -json | jq -r '.[].name' | grep -q $VCENTER_LIBRARY_NAME; then
+  echo "Library name: $VCENTER_LIBRARY_NAME already exists"
 else
-  echo "Creating library $LIBRARY_NAME"
-  govc library.create -u $GOVC_CONNECTION_STRING -ds=$GOVC_DATASTORE $LIBRARY_NAME
+  echo "Creating library $VCENTER_LIBRARY_NAME"
+  govc library.create -u $GOVC_CONNECTION_STRING -ds=$GOVC_DATASTORE $VCENTER_LIBRARY_NAME
 fi
 
 # check if the OVA already exists in the library
-if govc library.ls -u $GOVC_CONNECTION_STRING $LIBRARY_NAME/* | grep -q $OVA_NAME; then
-  echo "OVA $OVA_NAME already exists in library $LIBRARY_NAME"
+if govc library.ls -u $GOVC_CONNECTION_STRING $VCENTER_LIBRARY_NAME/* | grep -q $COREOS_OVA_NAME; then
+  echo "OVA $COREOS_OVA_NAME already exists in library $VCENTER_LIBRARY_NAME"
 else
-  echo "Importing OVA $OVA_NAME into library $LIBRARY_NAME"
-  govc library.import -u $GOVC_CONNECTION_STRING -n=$OVA_NAME $LIBRARY_NAME $OVA_URL
+  echo "Importing OVA $COREOS_OVA_NAME into library $VCENTER_LIBRARY_NAME"
+  govc library.import -u $GOVC_CONNECTION_STRING -n=$COREOS_OVA_NAME $VCENTER_LIBRARY_NAME $COREOS_OVA_URL
 fi
 
-govc library.deploy -u $GOVC_CONNECTION_STRING -host=$GOVC_HOST /$LIBRARY_NAME/$OVA_NAME $GOVC_VM
+govc library.deploy -u $GOVC_CONNECTION_STRING -host=$GOVC_HOST /$VCENTER_LIBRARY_NAME/$COREOS_OVA_NAME $GOVC_VM
 govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data=$(cat coreos.ign | base64 -w0)"
 govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data.encoding=base64"
 govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -m=32000 -c=8
