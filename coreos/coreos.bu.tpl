@@ -20,7 +20,7 @@ storage:
       mode: 0755
 
     - path: /opt/portainer/deploy-stack.sh
-      mode: 0644
+      mode: 0700
       contents:
         local: portainer/deploy-stack.sh
 
@@ -28,10 +28,6 @@ storage:
       mode: 0644
       contents:
         local: openldap/docker-compose.yml
-
-    - path: /opt/portainer/portainer.tar.gz
-      contents:
-        local: http://restore.us.177cpt.com/portainer.tar.gz
 
 systemd:
   units:
@@ -70,12 +66,12 @@ systemd:
         Type=oneshot
         RemainAfterExit=yes
         TimeoutStartSec=0
-        ExecStartPre=-/usr/bin/docker stop %n
-        ExecStartPre=-/usr/bin/docker rm %n
+        ExecStartPre=-/usr/bin/docker stop portainer
+        ExecStartPre=-/usr/bin/docker rm portainer
         ExecStartPre=/usr/bin/docker pull portainer/portainer-ce
         ExecStart=-/usr/bin/mkdir -p /var/portainer/data
-        ExecStart=/usr/bin/docker run --privileged=true -d -p 9000:9000 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data portainer/portainer-ce:2.19.4 --admin-password '${PORTAINER_PASSWORD}'
-        ExecStop=/usr/bin/docker stop -t 15 %n
+        ExecStart=/usr/bin/docker run --privileged=true -d -p ${PORTAINER_PORT}:9000 --name portainer --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer/data:/data ${PORTAINER_DOCKER_IMAGE} --admin-password '${PORTAINER_PASSWORD}'
+        ExecStop=/usr/bin/docker stop -t 15 portainer
         
         [Install]
         WantedBy=multi-user.target

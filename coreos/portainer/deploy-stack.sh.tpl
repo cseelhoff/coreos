@@ -8,7 +8,7 @@ if [ -z ${STACK_NAME+x} ]; then
   echo "STACK_NAME is not set"
   exit 1
 fi
-PORTAINER_URL="http://localhost:9000"
+PORTAINER_URL="http://localhost:${PORTAINER_PORT}"
 USERNAME="admin"
 PORTAINER_PASSWORD="${PORTAINER_PASSWORD}"
 AUTH_PAYLOAD='{"Username": "'"$USERNAME"'",  "Password": "'"$PORTAINER_PASSWORD"'"}'

@@ -14,9 +14,11 @@ done
 source .env
 
 ### --- VARIABLES --- ###
-DOMAIN_NAME='177cpt.com'
-CF_API_EMAIL=cseelhoff@gmail.com
-TIMEZONE=America/Chicago
+# NOTE: it is required to "export" any variables that are used in templates; also GOVC seems to require this
+export ORGANIZATION_NAME='177th Cyber Protection Team'
+export DOMAIN_NAME='177cpt.com'
+export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
+export TIMEZONE=America/Chicago
 DNS_SERVER='10.0.1.44'
 DHCP_ROUTER='10.0.1.2'
 DHCP_START='10.0.1.10'
@@ -34,24 +36,41 @@ export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
 COREOS_OVA_URL="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova",
 COREOS_OVA_NAME="fedora-coreos-39.20240104.3.0-vmware.x86_64"
 PIHOLE_DOCKER_IMAGE=pihole/pihole:2024.01.0
-PIHOLE_BASE_URL=http://localhost/admin
+export PORTAINER_DOCKER_IMAGE=portainer/portainer-ce:2.19.4
+export OPENLDAP_DOCKER_IMAGE=osixia/openldap:1.5.0
+NEXUS_DOCKER_IMAGE=sonatype/nexus3:3.64.0
+GITEA_DOCKER_IMAGE=gitea/gitea:1.21.4
+TRAEFIK_DOCKER_IMAGE=traefik:v2.11
+export PHPLDAPADMIN_DOCKER_IMAGE=osixia/phpldapadmin:0.9.0
+export AWX_GHCR_IMAGE=ghcr.io/ansible/awx_devel:devel
 PIHOLE_ETC_PIHOLE_DIR=$(pwd)/etc-pihole/
 PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/etc-dnsmasq.d/
 PIHOLE_PASSWORD=$(openssl rand -base64 32)
 TRAEFIK_PASSWORD=$(openssl rand -base64 32)
 NEXUS_PASSWORD=$(openssl rand -base64 32)
+export LDAP_ADMIN_PASSWORD=$(openssl rand -base64 32)
+export LDAP_CONFIG_PASSWORD=$(openssl rand -base64 32)
 export PORTAINER_PASSWORD=$(openssl rand -base64 32)
-PIHOLE_FQDN=pihole.$DOMAIN_NAME
-NEXUS_FQDN=nexus.$DOMAIN_NAME
-TRAEFIK_FQDN=traefik.$DOMAIN_NAME
+export DJANGO_SUPERUSER_PASSWORD=$(openssl rand -base64 32)
+export AWX_POSTGRES_PASSWORD="rzabMdUaDNuyQGmnYUQN" #$(openssl rand -base64 32)
+export BROADCAST_WEBSOCKET_SECRET="QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y=" #$(openssl rand -base64 32)
+export AWX_SECRET_KEY="JDqxKuQemHEajsZVZFQs" #$(openssl rand -base64 32)
+export PIHOLE_FQDN=pihole.$DOMAIN_NAME
+export NEXUS_FQDN=nexus.$DOMAIN_NAME
+export TRAEFIK_FQDN=traefik.$DOMAIN_NAME
+export DOCKER_FQDN=docker.$DOMAIN_NAME
+export PORTAINER_PORT=9000
 NEXUS_PORT=8081
 DOCKER_REGISTRY_PORT=5000
 VCENTER_LIBRARY_NAME=library
 
 ### --- AUTO-GENERATED VARIABLES --- ###
-PIHOLE_LOGIN_URL=$PIHOLE_BASE_URL/login.php
-PIHOLE_INDEX_URL=$PIHOLE_BASE_URL/index.php
-PIHOLE_CUSTOM_DNS_URL=$PIHOLE_BASE_URL/scripts/pi-hole/php/customdns.php
+export PIHOLE_FQDN_BASE_URL=http://$PIHOLE_FQDN
+PIHOLE_BOOTSTRAP_BASE_URL=http://localhost
+DOCKER_REGISTRY_HOST=https://$DOCKER_FQDN
+PIHOLE_LOGIN_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/login.php
+PIHOLE_INDEX_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/index.php
+PIHOLE_CUSTOM_DNS_URL=$PIHOLE_BOOTSTRAP_BASE_URL/admin/scripts/pi-hole/php/customdns.php
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FQDN/service/rest/v1
 NEXUS_CREDS=admin:$NEXUS_PASSWORD
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
@@ -61,6 +80,11 @@ export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD")
 envsubst < bootstrap/traefik/docker-compose.yml.tpl > bootstrap/traefik/docker-compose.yml
 envsubst < coreos/guacamole/docker-compose.yml.tpl > coreos/guacamole/docker-compose.yml
 envsubst < coreos/openldap/docker-compose.yml.tpl > coreos/openldap/docker-compose.yml
+envsubst < coreos/coreos.bu.tpl > coreos/coreos.bu
+envsubst < coreos/awx/etc/tower/conf.d/database.py.tpl > coreos/awx/etc/tower/conf.d/database.py
+envsubst < coreos/awx/etc/tower/conf.d/websocket_secret.py.tpl > coreos/awx/etc/tower/conf.d/websocket_secret.py
+echo $AWX_SECRET_KEY > coreos/awx/etc/tower/SECRET_KEY
+
 
 ### --- MAIN --- ###
 echo "`date +"%Y-%m-%d %T"` -- deployment started!"
@@ -101,6 +125,7 @@ function add_dns_a_record() {
 add_dns_a_record $PIHOLE_FQDN
 add_dns_a_record $NEXUS_FQDN
 add_dns_a_record $TRAEFIK_FQDN
+add_dns_a_record $DOCKER_FQDN
 
 # create proxy network for traefik
 docker network create proxy
@@ -113,7 +138,7 @@ docker-compose -f traefik/docker-compose.yml -p traefik up -d
 #docker-compose -f traefik/docker-compose.yml -p traefik up -d --force-recreate
 
 # install nexus into docker container
-docker run -d -p $NEXUS_PORT:$NEXUS_PORT --name nexus sonatype/nexus3:3.64.0
+docker run -d -p $NEXUS_PORT:$NEXUS_PORT --name nexus $NEXUS_DOCKER_IMAGE
 
 # change the default admin password
 NEXUS_TEMP_PASSWORD=$(docker exec -it nexus cat /nexus-data/admin.password)
@@ -139,6 +164,15 @@ curl -v -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
   "type": "groovy",
   "content": "repository.createDockerGroup('docker-group', ['docker-hosted', 'docker-proxy'], '$DOCKER_REGISTRY_PORT', true)"
 }' -X POST $NEXUS_SERIVICE_REST_URL/script
+
+docker pull $DOCKER_REGISTRY_HOST/$NEXUS_DOCKER_IMAGE
+docker pull $DOCKER_REGISTRY_HOST/$PORTAINER_DOCKER_IMAGE
+docker pull $DOCKER_REGISTRY_HOST/$OPENLDAP_DOCKER_IMAGE
+docker pull $DOCKER_REGISTRY_HOST/$TRAEFIK_DOCKER_IMAGE
+
+# TODO: proxy or reupload the images to the docker-hosted repository
+# BUILD THE AWX IMAGE and UI
+docker pull $AWX_GHCR_IMAGE
 
 
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS

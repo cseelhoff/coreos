@@ -1,15 +1,15 @@
 version: "2"
 services:
   openldap:
-    image: osixia/openldap:1.5.0
+    image: ${OPENLDAP_DOCKER_IMAGE}
     container_name: openldap
     environment:
       LDAP_LOG_LEVEL: "256"
-      LDAP_ORGANISATION: "177 CPT"
+      LDAP_ORGANISATION: "${ORGANISATION}"
       LDAP_DOMAIN: "${DOMAINNAME}"
       LDAP_BASE_DN: ""
-      LDAP_ADMIN_PASSWORD: "admin"
-      LDAP_CONFIG_PASSWORD: "config"
+      LDAP_ADMIN_PASSWORD: "${LDAP_ADMIN_PASSWORD}"
+      LDAP_CONFIG_PASSWORD: "${LDAP_CONFIG_PASSWORD}"
       LDAP_READONLY_USER: "false"
       LDAP_RFC2307BIS_SCHEMA: "false"
       LDAP_BACKEND: "mdb"
@@ -34,10 +34,10 @@ services:
     ports:
       - "389:389"
       - "636:636"
-    domainname: "us.177cpt.com"
+    domainname: "${DOMAIN_NAME}"
     hostname: "ldap"
   phpldapadmin:
-    image: osixia/phpldapadmin:0.9.0
+    image: ${PHPLDAPADMIN_DOCKER_IMAGE}
     container_name: phpldapadmin
     environment:
       PHPLDAPADMIN_LDAP_HOSTS: "ldap"

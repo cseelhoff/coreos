@@ -4,7 +4,7 @@ http:
     pihole:
       entryPoints:
         - "https"
-      rule: "Host(`pihole.177cpt.com`)"
+      rule: "Host(`${PIHOLE_FQDN}`)"
       middlewares:
         - redirectregex-pihole
         - default-headers
@@ -19,7 +19,7 @@ http:
     pihole:
       loadBalancer:
         servers:
-          - url: "http://10.0.1.44:8080"
+          - url: "${PIHOLE_FQDN_BASE_URL}"
         passHostHeader: true
 #endregion
   middlewares:

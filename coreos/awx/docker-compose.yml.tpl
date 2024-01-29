@@ -3,7 +3,7 @@ services:
   # Primary AWX Development Container
   awx_1:
     user: "1000"
-    image: "ghcr.io/ansible/awx_devel:devel"
+    image: "${AWX_GHCR_IMAGE}"
     container_name: awx
     hostname: awx_1
     command: launch_awx.sh
@@ -17,7 +17,7 @@ services:
       CONTROL_PLANE_NODE_COUNT: 1
       EXECUTION_NODE_COUNT: 0
       AWX_LOGGING_MODE: stdout
-      DJANGO_SUPERUSER_PASSWORD: FfjbCpGZWbWuEsryytNC
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD}
       UWSGI_MOUNT_PATH: /
       RUN_MIGRATIONS: 1
     links:
@@ -84,7 +84,7 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
       POSTGRES_USER: awx
       POSTGRES_DB: awx
-      POSTGRES_PASSWORD: rzabMdUaDNuyQGmnYUQN
+      POSTGRES_PASSWORD: ${AWX_POSTGRES_PASSWORD}
     volumes:
       - "postgresql:/var/lib/postgresql/data"
     networks:
