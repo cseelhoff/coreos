@@ -119,9 +119,10 @@ echo $AWX_SECRET_KEY > coreos/awx/etc/tower/SECRET_KEY
 butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/coreos.ign
 
 ### --- MAIN --- ###
+echo "Stopping and removing existing Pi-hole container"
+sudo docker stop pihole > /dev/null
+sudo docker rm pihole > /dev/null
 echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
-sudo docker stop pihole
-sudo docker rm pihole
 sudo docker run -d \
   --name=pihole \
   -h pihole \
@@ -169,17 +170,17 @@ add_dns_a_record $GOVC_URL $GOVC_IP
 
 echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
-
 echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 
+echo "Stopping and removing existing Traefik container"
 sudo docker-compose down traefik
 echo "Setting permissions to 600 on Traefik acme.json"
 chmod 600 bootstrap/traefik/data/acme.json
 echo "Creating proxy network for Traefik"
-sudo docker network rm proxy
-sudo docker network create proxy
+sudo docker network rm proxy > /dev/null
+sudo docker network create proxy > /dev/null
 echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 sudo docker stop nexus
