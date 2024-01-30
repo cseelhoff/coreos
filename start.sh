@@ -174,7 +174,7 @@ echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAI
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 
-sudo docker-compose down -p traefik
+sudo docker-compose down traefik
 echo "Setting permissions to 600 on Traefik acme.json"
 chmod 600 bootstrap/traefik/data/acme.json
 echo "Creating proxy network for Traefik"
@@ -189,149 +189,151 @@ sudo docker volume create --name nexus-data
 if [ -f backup/nexus-backup.tar.gz ]; then
   echo "Restoring Nexus from backup"
   sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine tar -xzf /backup/nexus-backup.tar.gz -C /nexus-data
-fi
-echo "Starting Nexus"
-sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $NEXUS_DOCKER_IMAGE
-printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
-until $(curl -u admin:$NEXUS_TEMP_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
-  printf '.'
-  sleep 1
-  # if the password is not set, get it from the container
-  if [ -z "$NEXUS_TEMP_PASSWORD" ]; then
-    NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
-    if [ -n "$NEXUS_TEMP_PASSWORD" ]; then
-      printf "\n"
-      echo "Nexus temp password is: $NEXUS_TEMP_PASSWORD"
-      printf "Continuing to wait for Nexus to start"
+else
+  echo "No backup found, creating new Nexus"
+  echo "Starting Nexus"
+  sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $NEXUS_DOCKER_IMAGE
+  printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
+  until $(curl -u admin:$NEXUS_TEMP_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
+    printf '.'
+    sleep 1
+    # if the password is not set, get it from the container
+    if [ -z "$NEXUS_TEMP_PASSWORD" ]; then
+      NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
+      if [ -n "$NEXUS_TEMP_PASSWORD" ]; then
+        printf "\n"
+        echo "Nexus temp password is: $NEXUS_TEMP_PASSWORD"
+        printf "Continuing to wait for Nexus to start"
+      fi
     fi
-  fi
-done
-# change the default admin password
-printf '\n'
-echo "Changing Nexus password from: $NEXUS_TEMP_PASSWORD to: $NEXUS_PASSWORD"
-curl -u admin:$NEXUS_TEMP_PASSWORD -X PUT -d $NEXUS_PASSWORD -H "Content-Type: text/plain" $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password
-echo "Setting active realms to LdapRealm, DockerToken, and NexusAuthenticatingRealm"
-curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '[
-    "LdapRealm",
-    "DockerToken",
-    "NexusAuthenticatingRealm"
-  ]' -X PUT $NEXUS_SERIVICE_REST_URL/security/realms/active
-echo "Creating docker-hosted repository"
-curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
-  "name": "docker-hosted",
-  "online": true,
-  "storage": {
-    "blobStoreName": "default",
-    "strictContentTypeValidation": true,
-    "writePolicy": "ALLOW"
-  },
-  "docker": {
-    "v1Enabled": false,
-    "forceBasicAuth": false
-  }
-}' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/hosted
-echo "Creating docker-proxy repository"
-curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
-  "name": "docker-proxy",
-  "online": true,
-  "storage": {
-    "blobStoreName": "default",
-    "strictContentTypeValidation": true
-  },
-  "proxy": {
-    "remoteUrl": "https://registry-1.docker.io",
-    "contentMaxAge": 1440,
-    "metadataMaxAge": 1440
-  },
-  "negativeCache": {
-    "enabled": true,
-    "timeToLive": 1440
-  },
-  "httpClient": {
-    "blocked": false,
-    "autoBlock": false
-  },
-  "docker": {
-    "v1Enabled": false,
-    "forceBasicAuth": false
-  },
-  "dockerProxy": {
-    "indexType": "HUB"
-  }
-}' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
-echo "Creating ghcr-proxy repository"
-curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
-  "name": "ghcr-proxy",
-  "online": true,
-  "storage": {
-    "blobStoreName": "default",
-    "strictContentTypeValidation": true
-  },
-  "proxy": {
-    "remoteUrl": "https://ghcr.io",
-    "contentMaxAge": 1440,
-    "metadataMaxAge": 1440
-  },
-  "negativeCache": {
-    "enabled": true,
-    "timeToLive": 1440
-  },
-  "httpClient": {
-    "blocked": false,
-    "autoBlock": false
-  },
-  "docker": {
-    "v1Enabled": false,
-    "forceBasicAuth": false
-  },
-  "dockerProxy": {
-    "indexType": "REGISTRY"
-  }
-}' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
-echo "Creating docker-group repository for docker-hosted, docker-proxy, and ghcr-proxy"
-curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
-  \"name\": \"docker-group\",
-  \"online\": true,
-  \"storage\": {
-    \"blobStoreName\": \"default\",
-    \"strictContentTypeValidation\": true
-  },
-  \"group\": {
-    \"memberNames\": [
-      \"docker-hosted\",
-      \"docker-proxy\",
-      \"ghcr-proxy\"
-    ]
-  },
-  \"docker\": {
-    \"v1Enabled\": false,
-    \"forceBasicAuth\": false,
-    \"httpPort\": $DOCKER_REGISTRY_PORT
-  }
-}" -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/group
+  done
+  # change the default admin password
+  printf '\n'
+  echo "Changing Nexus password from: $NEXUS_TEMP_PASSWORD to: $NEXUS_PASSWORD"
+  curl -u admin:$NEXUS_TEMP_PASSWORD -X PUT -d $NEXUS_PASSWORD -H "Content-Type: text/plain" $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password
+  echo "Setting active realms to LdapRealm, DockerToken, and NexusAuthenticatingRealm"
+  curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '[
+      "LdapRealm",
+      "DockerToken",
+      "NexusAuthenticatingRealm"
+    ]' -X PUT $NEXUS_SERIVICE_REST_URL/security/realms/active
+  echo "Creating docker-hosted repository"
+  curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
+    "name": "docker-hosted",
+    "online": true,
+    "storage": {
+      "blobStoreName": "default",
+      "strictContentTypeValidation": true,
+      "writePolicy": "ALLOW"
+    },
+    "docker": {
+      "v1Enabled": false,
+      "forceBasicAuth": false
+    }
+  }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/hosted
+  echo "Creating docker-proxy repository"
+  curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
+    "name": "docker-proxy",
+    "online": true,
+    "storage": {
+      "blobStoreName": "default",
+      "strictContentTypeValidation": true
+    },
+    "proxy": {
+      "remoteUrl": "https://registry-1.docker.io",
+      "contentMaxAge": 1440,
+      "metadataMaxAge": 1440
+    },
+    "negativeCache": {
+      "enabled": true,
+      "timeToLive": 1440
+    },
+    "httpClient": {
+      "blocked": false,
+      "autoBlock": false
+    },
+    "docker": {
+      "v1Enabled": false,
+      "forceBasicAuth": false
+    },
+    "dockerProxy": {
+      "indexType": "HUB"
+    }
+  }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
+  echo "Creating ghcr-proxy repository"
+  curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d '{
+    "name": "ghcr-proxy",
+    "online": true,
+    "storage": {
+      "blobStoreName": "default",
+      "strictContentTypeValidation": true
+    },
+    "proxy": {
+      "remoteUrl": "https://ghcr.io",
+      "contentMaxAge": 1440,
+      "metadataMaxAge": 1440
+    },
+    "negativeCache": {
+      "enabled": true,
+      "timeToLive": 1440
+    },
+    "httpClient": {
+      "blocked": false,
+      "autoBlock": false
+    },
+    "docker": {
+      "v1Enabled": false,
+      "forceBasicAuth": false
+    },
+    "dockerProxy": {
+      "indexType": "REGISTRY"
+    }
+  }' -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/proxy
+  echo "Creating docker-group repository for docker-hosted, docker-proxy, and ghcr-proxy"
+  curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
+    \"name\": \"docker-group\",
+    \"online\": true,
+    \"storage\": {
+      \"blobStoreName\": \"default\",
+      \"strictContentTypeValidation\": true
+    },
+    \"group\": {
+      \"memberNames\": [
+        \"docker-hosted\",
+        \"docker-proxy\",
+        \"ghcr-proxy\"
+      ]
+    },
+    \"docker\": {
+      \"v1Enabled\": false,
+      \"forceBasicAuth\": false,
+      \"httpPort\": $DOCKER_REGISTRY_PORT
+    }
+  }" -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/group
 
-echo 'Removing local docker images cache'
-sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
-sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
-#sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
-sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
-#sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
-echo 'Caching docker images in Nexus'
-sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
-sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
-#sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
-sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
-#sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
+  echo 'Removing local docker images cache'
+  sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
+  sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
+  #sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
+  sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
+  #sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
+  echo 'Caching docker images in Nexus'
+  sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
+  sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
+  #sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
+  sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
+  #sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
 
-#When stopping, be sure to allow sufficient time for the databases to fully shut down.
-echo 'Stopping Nexus to create backup'
-sudo docker stop --time=120 nexus
-echo 'Creating Nexus backup'
-# create a new backup directory if it does not exist
-[ -d backup ] || mkdir backup
-sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
-echo 'Starting Nexus'
-sudo docker start nexus
+  #When stopping, be sure to allow sufficient time for the databases to fully shut down.
+  echo 'Stopping Nexus to create backup'
+  sudo docker stop --time=120 nexus
+  echo 'Creating Nexus backup'
+  # create a new backup directory if it does not exist
+  [ -d backup ] || mkdir backup
+  sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
+  echo 'Starting Nexus'
+  sudo docker start nexus
+fi
 printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
 until $(curl -u admin:$NEXUS_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
   printf '.'
