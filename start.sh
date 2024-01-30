@@ -190,7 +190,12 @@ printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
 until $(curl -u admin:$NEXUS_TEMP_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
   printf '.'
   sleep 1
-  NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
+  # if the password is not set, get it from the container
+  if [ -z "$NEXUS_TEMP_PASSWORD" ]; then
+    NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
+    echo "Nexus temp password is: $NEXUS_TEMP_PASSWORD"
+    echo "Continuing to wait for Nexus to start"
+  fi
 done
 # change the default admin password
 echo "Changing Nexus password from: $NEXUS_TEMP_PASSWORD to: $NEXUS_PASSWORD"
