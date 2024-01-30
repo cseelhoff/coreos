@@ -179,9 +179,20 @@ echo $AWX_SECRET_KEY > coreos/awx/etc/tower/SECRET_KEY
 butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/coreos.ign
 
 ### --- MAIN --- ###
-echo "Stopping and removing existing Pi-hole container"
-sudo docker stop pihole > /dev/null
-sudo docker rm pihole > /dev/null
+echo "Check if the container named pihole exists"
+if sudo docker ps -a --format '{{.Names}}' | grep -q "pihole"; then
+  echo "Container 'pihole' exists. Checking if it is running"
+  if sudo docker ps --format '{{.Names}}' | grep -q "pihole"; then
+    echo "Container 'pihole' is running. Stopping container..."
+    sudo docker stop pihole > /dev/null
+  else
+    echo "Container 'pihole' is not running"
+  fi
+  echo "Removing container 'pihole'..."
+  sudo docker rm pihole > /dev/null
+else
+  echo "Container 'pihole' does not exist"
+fi
 echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
 sudo docker run -d \
   --name=pihole \
@@ -237,12 +248,35 @@ echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf 
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 echo "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig after changing local DNS settings"
 dig +short $NEXUS_FRONTEND_FQDN
-echo "Stopping and removing existing Traefik container"
-sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik down
+#echo "Stopping and removing existing Traefik container"
+echo "Checking if the container named traefik exists"
+if sudo docker ps -a --format '{{.Names}}' | grep -q "traefik"; then
+  echo "Container 'traefik' exists. Checking if it is running"
+  if sudo docker ps --format '{{.Names}}' | grep -q "traefik"; then
+    echo "Container 'traefik' is running. Stopping container..."
+    sudo docker stop traefik > /dev/null
+  else
+    echo "Container 'traefik' is not running"
+  fi
+  echo "Removing container 'traefik'..."
+  sudo docker rm traefik > /dev/null
+else
+  echo "Container 'traefik' does not exist"
+fi
 echo "Setting permissions to 600 on Traefik acme.json"
 chmod 600 bootstrap/traefik/data/acme.json
+echo "Checking if proxy network for Traefik exists"
+if sudo docker network inspect proxy >/dev/null 2>&1; then
+  echo "Proxy network exists. Checking if any containers are using it"
+  if sudo docker network inspect proxy | grep -q '"Containers": {}'; then
+    echo "No containers are using the proxy network. Removing the proxy network"
+    sudo docker network rm proxy > /dev/null
+  else
+    echo "Other containers are still using the proxy network. Exiting script as failed."
+    exit 1
+  fi
+fi
 echo "Creating proxy network for Traefik"
-sudo docker network rm proxy > /dev/null
 sudo docker network create proxy > /dev/null
 echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
