@@ -19,12 +19,16 @@ export ORGANIZATION_NAME='177th Cyber Protection Team'
 export DOMAIN_NAME='177cpt.com'
 export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
 export TIMEZONE=America/Chicago
-DNS_SERVER_IP='10.0.1.44'
-BOOTSTRAP_IP=$DNS_SERVER_IP
+DNS_SERVER_IP='10.0.1.10'
+# get all IP addresses of current machine
+ALL_IPS=$(hostname -I)
+
+#BOOTSTRAP_IP=$DNS_SERVER_IP
 DHCP_ROUTER_IP='10.0.1.2'
-DHCP_START_IP='10.0.1.10'
-DHCP_END_IP='10.0.1.50'
+DHCP_START_IP='10.0.1.11'
+DHCP_END_IP='10.0.1.30'
 export GOVC_URL="vsphere2.us.177cpt.com"
+GOVC_IP='10.0.1.41'
 export GOVC_USERNAME="Administrator@VSPHERE.LOCAL"
 export GOVC_HOST="10.0.1.31"
 export GOVC_DATASTORE="esxi4_datastore"
@@ -159,6 +163,8 @@ add_dns_a_record $TRAEFIK_FQDN $TRAEFIK_IP
 add_dns_a_record $PIHOLE_FRONTEND_FQDN $TRAEFIK_IP
 add_dns_a_record $NEXUS_FRONTEND_FQDN $TRAEFIK_IP
 add_dns_a_record $DOCKER_REGISTRY_FRONTEND_FQDN $TRAEFIK_IP
+add_dns_a_record $GOVC_URL $GOVC_IP
+
 echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
 
