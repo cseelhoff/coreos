@@ -17,9 +17,9 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /home/localadmin/coreos/bootstrap/traefik/data/traefik.yml:/traefik.yml:ro
-      - /home/localadmin/coreos/bootstrap/traefik/data/acme.json:/acme.json
-      - /home/localadmin/coreos/bootstrap/traefik/data/config.yml:/config.yml:ro
+      - ${TRAEFIK_DATA_DIR}/traefik.yml:/traefik.yml:ro
+      - ${TRAEFIK_DATA_DIR}/acme.json:/acme.json
+      - ${TRAEFIK_DATA_DIR}/config.yml:/config.yml:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.entrypoints=http"

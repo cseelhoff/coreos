@@ -15,24 +15,10 @@ source .env
 
 # making this a function so it can easily be collapsed in the editor
 get_network_info() {
-  if [ -n "$WSL_DISTRO_NAME" ]; then
-    HOST_IP=$(ipconfig.exe | grep 'Default Gateway . . . . . . . . . : [0-9]' -B9 | grep 'IPv4 Address' | tail -n1 | cut -d":" -f 2 | sed -e 's/\s*//g')
-    HOST_GATEWAY_IP=$(ipconfig.exe | grep 'Default Gateway . . . . . . . . . : [0-9]' | tail -n1 | cut -d":" -f 2 | sed -e 's/\s*//g')
-    HOST_SUBNET_MASK=$(ipconfig.exe | grep 'Default Gateway . . . . . . . . . : [0-9]' -B9 | grep 'Subnet Mask' | tail -n1 | cut -d":" -f 2 | sed -e 's/\s*//g')
-    SUBNET_MASK_INT=$(echo $HOST_SUBNET_MASK | awk -F. '{print ($1 * 2^24) + ($2 * 2^16) + ($3 * 2^8) + $4}')
-    SUBNET_MASK_INT_DIFF=$((4294967296 - $SUBNET_MASK_INT))
-    SHIFTED_INT=0
-    while [ $SUBNET_MASK_INT_DIFF -gt 1 ]; do
-      SUBNET_MASK_INT_DIFF=$(($SUBNET_MASK_INT_DIFF >> 1))
-      SHIFTED_INT=$(($SHIFTED_INT + 1))
-    done
-    CIDR=$((32 - $SHIFTED_INT))
-  else
-    HOST_IP=$(hostname -I | cut -d' ' -f1)
-    HOST_GATEWAY_IP=$(ip route | grep default | cut -d' ' -f3)
-    HOST_SUBNET_MASK=$(ip -o -f inet addr show | awk '/scope global/ {print $4}')
-    CIDR=$(echo $HOST_SUBNET_MASK | cut -d'/' -f2)
-  fi
+  HOST_IP=$(hostname -I | cut -d' ' -f1)
+  HOST_GATEWAY_IP=$(ip route | grep default | cut -d' ' -f3)
+  HOST_SUBNET_MASK=$(ip -o -f inet addr show | awk '/scope global/ {print $4}')
+  CIDR=$(echo $HOST_SUBNET_MASK | cut -d'/' -f2)
 
   # Calculate the network address
   HOST_IP_INT=$(echo $HOST_IP | awk -F. '{print ($1 * 2^24) + ($2 * 2^16) + ($3 * 2^8) + $4}')
@@ -116,19 +102,19 @@ export AWX_GHCR_IMAGE=ansible/awx_devel:devel
 PIHOLE_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 TRAEFIK_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 NEXUS_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
-export LDAP_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
-export LDAP_CONFIG_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
-export PORTAINER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
-export DJANGO_SUPERUSER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
-export AWX_POSTGRES_PASSWORD="rzabMdUaDNuyQGmnYUQN" #$(openssl rand -base64 32)
-export BROADCAST_WEBSOCKET_SECRET="QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y=" #$(openssl rand -base64 32)
-export AWX_SECRET_KEY="JDqxKuQemHEajsZVZFQs" #$(openssl rand -base64 32)
-export PIHOLE_SHORTNAME=pihole
-export NEXUS_SHORTNAME=nexus
-export TRAEFIK_SHORTNAME=traefik
-export DOCKER_SHORTNAME=docker
-
-export PORTAINER_PORT=9000
+LDAP_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+LDAP_CONFIG_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+PORTAINER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+DJANGO_SUPERUSER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+AWX_POSTGRES_PASSWORD="rzabMdUaDNuyQGmnYUQN" #$(openssl rand -base64 32)
+BROADCAST_WEBSOCKET_SECRET="QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y=" #$(openssl rand -base64 32)
+AWX_SECRET_KEY="JDqxKuQemHEajsZVZFQs" #$(openssl rand -base64 32)
+PIHOLE_SHORTNAME=pihole
+NEXUS_SHORTNAME=nexus
+TRAEFIK_SHORTNAME=traefik
+DOCKER_SHORTNAME=docker
+UPSTREAM_DNS_IPS="1.1.1.1;1.0.0.1"
+PORTAINER_PORT=9000
 PIHOLE_PORT=8001
 NEXUS_PORT=8081
 DOCKER_REGISTRY_PORT=8002
@@ -150,14 +136,15 @@ export PIHOLE_BACKEND_URL=http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT
 export NEXUS_BACKEND_URL=http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT
 export DOCKER_REGISTRY_BACKEND_URL=http://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT
 export PORTAINER_LOCALHOST_URL=http://localhost:$PORTAINER_PORT
-PIHOLE_LOCALHOST_BASE_URL=http://localhost:$PIHOLE_PORT
-PIHOLE_LOGIN_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/login.php
-PIHOLE_INDEX_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/index.php
-PIHOLE_SETTINGS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns
-PIHOLE_CUSTOM_DNS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php
+#PIHOLE_LOCALHOST_BASE_URL=http://localhost:$PIHOLE_PORT
+#PIHOLE_LOGIN_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/login.php
+#PIHOLE_INDEX_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/index.php
+#PIHOLE_SETTINGS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns
+#PIHOLE_CUSTOM_DNS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FRONTEND_FQDN/service/rest/v1
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
-export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g) 
+export TRAEFIK_DATA_DIR=$(pwd)/bootstrap/traefik/data
+export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g)
 export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2 | sed -e s/\\$/\\$\\$/g)
 export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD)
 echo "Creating ssh keypair if it does not exist..."
@@ -197,48 +184,39 @@ echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOL
 sudo docker run -d \
   --name=pihole \
   -h pihole \
-  -p 53:53/tcp -p 53:53/udp -p 67:67/udp -p $PIHOLE_PORT:80/tcp \
   -e DNSMASQ_LISTENING=all \
   -e TZ=$TIMEZONE \
-  -e PIHOLE_DNS_=$DNS_SERVER_IP \
-  -e DHCP_ROUTER_IP=$DHCP_ROUTER_IP \
+  -e PIHOLE_DNS_=$UPSTREAM_DNS_IPS \
+  -e DHCP_ACTIVE=true \
   -e DHCP_START_IP=$DHCP_START_IP \
   -e DHCP_END_IP=$DHCP_END_IP \
+  -e DHCP_ROUTER_IP=$DHCP_ROUTER_IP \
   -e PIHOLE_DOMAIN=$DOMAIN_NAME \
   -e VIRTUAL_HOST=pihole \
   -e WEBPASSWORD=$PIHOLE_PASSWORD \
+  -e WEB_PORT=$PIHOLE_PORT \
   -v /etc/pihole/ \
   -v /etc/dnsmasq.d/ \
   --cap-add NET_ADMIN \
   --restart=unless-stopped \
+  --network=host \
   $PIHOLE_DOCKER_IMAGE
 
-# Wait for pihole to start
-printf 'Waiting for Pi-hole to start'
-until $(curl --output /dev/null --silent --head --fail $PIHOLE_LOGIN_URL); do
-  printf '.'
-  sleep 1
-done
-printf '\n'
-echo "Logging into Pi-hole"
-PIHOLE_TOKEN=$(curl -s -d "pw=$PIHOLE_PASSWORD" -c cookies.txt -X POST $PIHOLE_INDEX_URL | grep -oP '(?<=<div id="token" hidden>)(\S+)(?=<\/div>)' -m 1 | tr '\n' '\0' | jq -sRr @uri)
-echo "Obtained Pi-hole token: $PIHOLE_TOKEN"
-# Add DNS A record for pihole, nexus, traefik, and docker registry
-function add_dns_a_record() {
-  local fqdn=$1
-  local ip=$2
-  echo "Adding DNS A record for $fqdn with IP $ip"
-  curl -s -d "action=add&ip=$ip&domain=$fqdn&token=$PIHOLE_TOKEN" -b cookies.txt -X POST $PIHOLE_CUSTOM_DNS_URL
-}
-add_dns_a_record $PIHOLE_BACKEND_FQDN $PIHOLE_IP
-add_dns_a_record $NEXUS_BACKEND_FQDN $NEXUS_IP
-add_dns_a_record $DOCKER_REGISTRY_BACKEND_FQDN $DOCKER_REGISTRY_IP
-add_dns_a_record $TRAEFIK_FQDN $TRAEFIK_IP
-add_dns_a_record $PIHOLE_FRONTEND_FQDN $TRAEFIK_IP
-add_dns_a_record $NEXUS_FRONTEND_FQDN $TRAEFIK_IP
-add_dns_a_record $DOCKER_REGISTRY_FRONTEND_FQDN $TRAEFIK_IP
-add_dns_a_record $GOVC_URL $GOVC_IP
-
+echo "Append the custom DNS list to the pihole custom list file and restart the DNS service"
+# Define the custom DNS list
+CUSTOM_DNS_LIST="
+$PIHOLE_IP $PIHOLE_BACKEND_FQDN
+$NEXUS_IP $PIHOLE_BACKEND_FQDN
+$NEXUS_IP $NEXUS_BACKEND_FQDN
+$DOCKER_REGISTRY_IP $DOCKER_REGISTRY_BACKEND_FQDN
+$TRAEFIK_IP $TRAEFIK_FQDN
+$TRAEFIK_IP $PIHOLE_FRONTEND_FQDN
+$TRAEFIK_IP $NEXUS_FRONTEND_FQDN
+$TRAEFIK_IP $DOCKER_REGISTRY_FRONTEND_FQDN
+$GOVC_IP $GOVC_URL
+"
+# Append the custom DNS list to the pihole custom list file and restart the DNS service
+sudo docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
 echo "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings"
 dig +short $NEXUS_FRONTEND_FQDN
 echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
@@ -280,10 +258,26 @@ echo "Creating proxy network for Traefik"
 sudo docker network create proxy > /dev/null
 echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
-echo "Stopping and removing existing Nexus container"
-sudo docker stop nexus > /dev/null
-sudo docker rm nexus > /dev/null
-sudo docker volume rm nexus-data
+echo "Checking if the container named nexus exists"
+if sudo docker ps -a --format '{{.Names}}' | grep -q "nexus"; then
+  echo "Container 'nexus' exists. Checking if it is running"
+  if sudo docker ps --format '{{.Names}}' | grep -q "nexus"; then
+    echo "Container 'nexus' is running. Stopping container..."
+    sudo docker stop nexus > /dev/null
+  else
+    echo "Container 'nexus' is not running"
+  fi
+  echo "Removing container 'nexus'..."
+  sudo docker rm nexus > /dev/null
+else
+  echo "Container 'nexus' does not exist"
+fi
+echo "Checking if the volume named nexus-data exists"
+if sudo docker volume inspect nexus-data >/dev/null 2>&1; then
+  echo "Volume 'nexus-data' exists. Removing volume..."
+  sudo docker volume rm nexus-data > /dev/null
+fi
+echo "Creating volume 'nexus-data'"
 sudo docker volume create --name nexus-data
 if [ -f backup/nexus-backup.tar.gz ]; then
   echo "Restoring Nexus from backup"
