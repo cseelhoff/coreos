@@ -76,16 +76,16 @@ $HOST_GATEWAY_IP = $networkInfo.HOST_GATEWAY_IP
 $STARTING_IP = $networkInfo.STARTING_IP
 $ENDING_IP = $networkInfo.ENDING_IP
 ### --- VARIABLES --- ###
-$ORGANIZATION_NAME='177th Cyber Protection Team'
-$DOMAIN_NAME='177cpt.com'
-$CLOUDFLARE_EMAIL='cseelhoff@gmail.com'
-$TIMEZONE='America/Chicago'
-$GOVC_URL='vsphere2.us.177cpt.com'
-$GOVC_USERNAME='Administrator@VSPHERE.LOCAL'
-$GOVC_HOST='10.0.1.31'
-$GOVC_DATASTORE='esxi4_datastore'
-$GOVC_VM='infravm'
-$GOVC_NETWORK='Internal Management'
+$env:ORGANIZATION_NAME='177th Cyber Protection Team'
+$env:DOMAIN_NAME='177cpt.com'
+$env:CLOUDFLARE_EMAIL='cseelhoff@gmail.com'
+$env:TIMEZONE='America/Chicago'
+$env:GOVC_URL='vsphere2.us.177cpt.com'
+$env:GOVC_USERNAME='Administrator@VSPHERE.LOCAL'
+$env:GOVC_HOST='10.0.1.31'
+$env:GOVC_DATASTORE='esxi4_datastore'
+$env:GOVC_VM='infravm'
+$env:GOVC_NETWORK='Internal Management'
 $GOVC_IP='10.0.1.41'
 $DNS_SERVER_IP=$HOST_IP
 $BOOTSTRAP_IP=$DNS_SERVER_IP
@@ -94,18 +94,18 @@ $DHCP_START_IP=$STARTING_IP
 $DHCP_END_IP=$ENDING_IP
 
 ### --- OPTIONAL VARIABLES --- ###
-$GOVC_INSECURE=$true
-$GOVC_TLS_KNOWN_HOSTS='~/.govc_known_hosts'
+$env:GOVC_INSECURE=$true
+$env:GOVC_TLS_KNOWN_HOSTS='~/.govc_known_hosts'
 $COREOS_OVA_URL='https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova'
 $COREOS_OVA_NAME='fedora-coreos-39.20240104.3.0-vmware.x86_64'
 $PIHOLE_DOCKER_IMAGE='pihole/pihole:2024.01.0'
-$PORTAINER_DOCKER_IMAGE='portainer/portainer-ce:2.19.4'
-$OPENLDAP_DOCKER_IMAGE='osixia/openldap:1.5.0'
+$env:PORTAINER_DOCKER_IMAGE='portainer/portainer-ce:2.19.4'
+$env:OPENLDAP_DOCKER_IMAGE='osixia/openldap:1.5.0'
 $NEXUS_DOCKER_IMAGE='sonatype/nexus3:3.64.0'
 $GITEA_DOCKER_IMAGE='gitea/gitea:1.21.4'
-$TRAEFIK_DOCKER_IMAGE='traefik:v2.11'
-$PHPLDAPADMIN_DOCKER_IMAGE='osixia/phpldapadmin:0.9.0'
-$AWX_GHCR_IMAGE='ansible/awx_devel:devel'
+$env:TRAEFIK_DOCKER_IMAGE='traefik:v2.11'
+$env:PHPLDAPADMIN_DOCKER_IMAGE='osixia/phpldapadmin:0.9.0'
+$env:AWX_GHCR_IMAGE='ansible/awx_devel:devel'
 $PIHOLE_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
 $TRAEFIK_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
 $NEXUS_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
@@ -128,21 +128,21 @@ $DOCKER_REGISTRY_PORT=8002
 $VCENTER_LIBRARY_NAME='library'
 
 ### --- AUTO-GENERATED VARIABLES --- ###
-$PIHOLE_FRONTEND_FQDN="$PIHOLE_SHORTNAME.$DOMAIN_NAME"
-$NEXUS_FRONTEND_FQDN="$NEXUS_SHORTNAME.$DOMAIN_NAME"
-$DOCKER_REGISTRY_FRONTEND_FQDN="$DOCKER_SHORTNAME.$DOMAIN_NAME"
-$TRAEFIK_FQDN="$TRAEFIK_SHORTNAME.$DOMAIN_NAME"
-$PIHOLE_BACKEND_FQDN="$PIHOLE_SHORTNAME-backend01.$DOMAIN_NAME"
-$NEXUS_BACKEND_FQDN="$NEXUS_SHORTNAME-backend01.$DOMAIN_NAME"
-$DOCKER_REGISTRY_BACKEND_FQDN="$DOCKER_SHORTNAME-backend01.$DOMAIN_NAME"
+$env:PIHOLE_FRONTEND_FQDN="$PIHOLE_SHORTNAME.$DOMAIN_NAME"
+$env:NEXUS_FRONTEND_FQDN="$NEXUS_SHORTNAME.$DOMAIN_NAME"
+$env:DOCKER_REGISTRY_FRONTEND_FQDN="$DOCKER_SHORTNAME.$DOMAIN_NAME"
+$env:TRAEFIK_FQDN="$TRAEFIK_SHORTNAME.$DOMAIN_NAME"
+$env:PIHOLE_BACKEND_FQDN="$PIHOLE_SHORTNAME-backend01.$DOMAIN_NAME"
+$env:NEXUS_BACKEND_FQDN="$NEXUS_SHORTNAME-backend01.$DOMAIN_NAME"
+$env:DOCKER_REGISTRY_BACKEND_FQDN="$DOCKER_SHORTNAME-backend01.$DOMAIN_NAME"
 $TRAEFIK_IP=$BOOTSTRAP_IP
 $PIHOLE_IP=$BOOTSTRAP_IP
 $NEXUS_IP=$BOOTSTRAP_IP
 $DOCKER_REGISTRY_IP=$BOOTSTRAP_IP
-$PIHOLE_BACKEND_URL="http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT"
-$NEXUS_BACKEND_URL="http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT"
-$DOCKER_REGISTRY_BACKEND_URL="http://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT"
-$PORTAINER_LOCALHOST_URL="http://localhost:$PORTAINER_PORT"
+$env:PIHOLE_BACKEND_URL="http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT"
+$env:NEXUS_BACKEND_URL="http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT"
+$env:DOCKER_REGISTRY_BACKEND_URL="http://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT"
+$env:PORTAINER_LOCALHOST_URL="http://localhost:$PORTAINER_PORT"
 $PIHOLE_LOCALHOST_BASE_URL="http://localhost:$PIHOLE_PORT"
 $PIHOLE_LOGIN_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/login.php"
 $PIHOLE_INDEX_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/index.php"
@@ -150,14 +150,15 @@ $PIHOLE_SETTINGS_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns"
 $PIHOLE_CUSTOM_DNS_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php"
 $NEXUS_SERIVICE_REST_URL="https://$NEXUS_FRONTEND_FQDN/service/rest/v1"
 $GOVC_CONNECTION_STRING="$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL"
-$TRAEFIK_AUTH = docker run --rm httpd:2.4-alpine htpasswd -nb admin $TRAEFIK_PASSWORD | %{ $_ -replace "\\$", "`$`$" }
-$PORTAINER_BCRYPT = docker run --rm httpd:2.4-alpine htpasswd -nbB admin $PORTAINER_PASSWORD | %{ ($_ -split ":")[1] -replace "\\$", "`$`$" }
-$COREOS_ADMIN_PASSWORD_HASH = docker run --rm debian:latest bash -c "apt-get update && apt-get install -y whois && mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD"
+$env:TRAEFIK_DATA_DIR = "$(Get-Location)/bootstrap/traefik/data"
+$env:TRAEFIK_AUTH = docker run --rm httpd:2.4-alpine htpasswd -nb admin $TRAEFIK_PASSWORD | %{ $_ -replace "\\$", "`$`$" }
+$env:PORTAINER_BCRYPT = docker run --rm httpd:2.4-alpine htpasswd -nbB admin $PORTAINER_PASSWORD | %{ ($_ -split ":")[1] -replace "\\$", "`$`$" }
+$env:COREOS_ADMIN_PASSWORD_HASH = docker run --rm debian:latest bash -c "apt-get update && apt-get install -y whois && mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD"
 Write-Host "Creating ssh keypair if it does not exist..."
 if (!(Test-Path -Path "~/.ssh/id_rsa")) {
     ssh-keygen -t rsa -b 4096 -f "~/.ssh/id_rsa" -N '' > $null
 }
-$COREOS_SSH_PUBLIC_KEY = Get-Content "~/.ssh/id_rsa.pub"
+$env:COREOS_SSH_PUBLIC_KEY = Get-Content "~/.ssh/id_rsa.pub"
 
 Write-Host "Generating templates"
 
@@ -191,7 +192,7 @@ Replace-EnvVars -InputFile "coreos/guacamole/docker-compose.yml.tpl" -OutputFile
 Replace-EnvVars -InputFile "coreos/openldap/docker-compose.yml.tpl" -OutputFile "coreos/openldap/docker-compose.yml"
 Replace-EnvVars -InputFile "coreos/coreos.bu.tpl" -OutputFile "coreos/coreos.bu"
 Set-Content -Path "coreos/awx/etc/tower/SECRET_KEY" -Value $AWX_SECRET_KEY
-docker run --rm -v ${PWD}/coreos:/coreos quay.io/coreos/butane:release --files-dir /coreos --pretty --strict /coreos/coreos.bu --output /coreos/coreos.ign
+docker run --rm -v ./coreos:/coreos quay.io/coreos/butane:release --files-dir /coreos --pretty --strict /coreos/coreos.bu --output /coreos/coreos.ign
 
 function Remove-DockerContainer {
     param (
@@ -223,12 +224,13 @@ docker run -d `
   --name=pihole `
   -h pihole `
   -e DNSMASQ_LISTENING=all `
-  -e TZ=$TIMEZONE `
+  -e TZ=$env:TIMEZONE `
   -e PIHOLE_DNS_=$UPSTREAM_DNS_IPS `
+  -e DHCP_ACTIVE=true `
   -e DHCP_ROUTER_IP=$DHCP_ROUTER_IP `
   -e DHCP_START_IP=$DHCP_START_IP `
   -e DHCP_END_IP=$DHCP_END_IP `
-  -e PIHOLE_DOMAIN=$DOMAIN_NAME `
+  -e PIHOLE_DOMAIN=$env:DOMAIN_NAME `
   -e VIRTUAL_HOST=pihole `
   -e WEBPASSWORD=$PIHOLE_PASSWORD `
   -e WEB_PORT=$PIHOLE_PORT `
