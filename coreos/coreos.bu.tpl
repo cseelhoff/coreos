@@ -87,7 +87,7 @@ systemd:
         Type=oneshot
         RemainAfterExit=yes
         TimeoutStartSec=0
-        ExecStart=/usr/bin/sh /opt/portainer/deploy-stack.sh openldap /opt/openldap/docker-compose.yml
+        ExecStart=/usr/bin/sh /opt/portainer/deploy-stack.sh openldap /opt/openldap/docker-compose.yml ${PORTAINER_LOCALHOST_URL} ${PORTAINER_PASSWORD}
         
         [Install]
         WantedBy=multi-user.target

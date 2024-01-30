@@ -89,6 +89,7 @@ DOCKER_REGISTRY_IP=$BOOTSTRAP_IP
 export PIHOLE_BACKEND_URL=http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT
 export NEXUS_BACKEND_URL=http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT
 export DOCKER_REGISTRY_BACKEND_URL=http://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT
+export PORTAINER_LOCALHOST_URL=http://localhost:$PORTAINER_PORT
 PIHOLE_LOCALHOST_BASE_URL=http://localhost:$PIHOLE_PORT
 PIHOLE_LOGIN_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/login.php
 PIHOLE_INDEX_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/index.php
@@ -113,7 +114,6 @@ envsubst < coreos/awx/etc/tower/conf.d/database.py.tpl > coreos/awx/etc/tower/co
 envsubst < coreos/awx/etc/tower/conf.d/websocket_secret.py.tpl > coreos/awx/etc/tower/conf.d/websocket_secret.py
 envsubst < coreos/guacamole/docker-compose.yml.tpl > coreos/guacamole/docker-compose.yml
 envsubst < coreos/openldap/docker-compose.yml.tpl > coreos/openldap/docker-compose.yml
-envsubst < coreos/portainer/deploy-stack.sh.tpl > coreos/portainer/deploy-stack.sh
 envsubst < coreos/coreos.bu.tpl > coreos/coreos.bu
 echo $AWX_SECRET_KEY > coreos/awx/etc/tower/SECRET_KEY
 butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/coreos.ign
@@ -178,11 +178,11 @@ echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf 
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 
 sudo docker-compose down -p traefik
+echo "Setting permissions to 600 on Traefik acme.json"
+chmod 600 bootstrap/traefik/data/acme.json
 echo "Creating proxy network for Traefik"
 sudo docker network rm proxy
 sudo docker network create proxy
-echo "Setting permissions to 600 on Traefik acme.json"
-chmod 600 bootstrap/traefik/data/acme.json
 echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 sudo docker stop nexus
@@ -332,6 +332,11 @@ mkdir backup
 sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine tar -C /nexus-data -cf /backup/nexus-backup.tar.gz .
 printf 'Starting Nexus'
 sudo docker start nexus
+printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
+until $(curl -u admin:$NEXUS_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
+  printf '.'
+  sleep 1  
+done
 printf 'Bootstrap complete!'
 
 printf 'Logging into vCenter'

@@ -11,4 +11,3 @@ coreos/awx/etc/tower/conf.d/websocket_secret.py
 coreos/awx/etc/tower/SECRET_KEY
 coreos/guacamole/docker-compose.yml
 coreos/openldap/docker-compose.yml
-coreos/portainer/deploy-stack.sh
