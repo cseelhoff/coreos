@@ -122,6 +122,8 @@ butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/cor
 echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
 #mkdir -p $PIHOLE_ETC_PIHOLE_DIR
 #mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
+sudo docker volume rm pihole
+sudo docker volume rm dnsmasq.d
 sudo docker run -d \
   --name=pihole \
   -h pihole \
@@ -179,6 +181,7 @@ echo "Setting permissions to 600 on Traefik acme.json"
 chmod 600 bootstrap/traefik/data/acme.json
 echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
+sudo docker volume rm nexus-data
 sudo docker volume create --name nexus-data
 if [ -f backup/nexus-backup.tar.gz ]; then
   printf "Restoring Nexus from backup"
