@@ -120,12 +120,8 @@ butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/cor
 
 ### --- MAIN --- ###
 echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
-#mkdir -p $PIHOLE_ETC_PIHOLE_DIR
-#mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
 sudo docker stop pihole
 sudo docker rm pihole
-sudo docker volume rm pihole
-sudo docker volume rm dnsmasq.d
 sudo docker run -d \
   --name=pihole \
   -h pihole \
@@ -151,6 +147,7 @@ until $(curl --output /dev/null --silent --head --fail $PIHOLE_LOGIN_URL); do
   printf '.'
   sleep 1
 done
+printf '\n'
 echo "Logging into Pi-hole"
 PIHOLE_TOKEN=$(curl -s -d "pw=$PIHOLE_PASSWORD" -c cookies.txt -X POST $PIHOLE_INDEX_URL | grep -oP '(?<=<div id="token" hidden>)(\S+)(?=<\/div>)' -m 1 | tr '\n' '\0' | jq -sRr @uri)
 echo "Obtained Pi-hole token: $PIHOLE_TOKEN"
@@ -190,10 +187,10 @@ sudo docker rm nexus
 sudo docker volume rm nexus-data
 sudo docker volume create --name nexus-data
 if [ -f backup/nexus-backup.tar.gz ]; then
-  printf "Restoring Nexus from backup"
+  echo "Restoring Nexus from backup"
   sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine tar -xzf /backup/nexus-backup.tar.gz -C /nexus-data
 fi
-printf "Starting Nexus"
+echo "Starting Nexus"
 sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $NEXUS_DOCKER_IMAGE
 printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
 until $(curl -u admin:$NEXUS_TEMP_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
@@ -203,12 +200,14 @@ until $(curl -u admin:$NEXUS_TEMP_PASSWORD -X GET --output /dev/null --silent --
   if [ -z "$NEXUS_TEMP_PASSWORD" ]; then
     NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
     if [ -n "$NEXUS_TEMP_PASSWORD" ]; then
+      printf "\n"
       echo "Nexus temp password is: $NEXUS_TEMP_PASSWORD"
-      echo "Continuing to wait for Nexus to start"
+      printf "Continuing to wait for Nexus to start"
     fi
   fi
 done
 # change the default admin password
+printf '\n'
 echo "Changing Nexus password from: $NEXUS_TEMP_PASSWORD to: $NEXUS_PASSWORD"
 curl -u admin:$NEXUS_TEMP_PASSWORD -X PUT -d $NEXUS_PASSWORD -H "Content-Type: text/plain" $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password
 echo "Setting active realms to LdapRealm, DockerToken, and NexusAuthenticatingRealm"
@@ -311,13 +310,13 @@ curl -u admin:$NEXUS_PASSWORD -H "Content-Type: application/json" -d "{
   }
 }" -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/group
 
-printf 'Removing local docker images cache'
+echo 'Removing local docker images cache'
 sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
 sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
 #sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
 sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
 #sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
-printf 'Caching docker images in Nexus'
+echo 'Caching docker images in Nexus'
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
 sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
 #sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
@@ -325,28 +324,30 @@ sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
 #sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
 
 #When stopping, be sure to allow sufficient time for the databases to fully shut down.
-printf 'Stopping Nexus to create backup'
+echo 'Stopping Nexus to create backup'
 sudo docker stop --time=120 nexus
-printf 'Creating Nexus backup'
-mkdir backup
-sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine tar -C /nexus-data -cf /backup/nexus-backup.tar.gz .
-printf 'Starting Nexus'
+echo 'Creating Nexus backup'
+# create a new backup directory if it does not exist
+[ -d backup ] || mkdir backup
+sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
+echo 'Starting Nexus'
 sudo docker start nexus
 printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
 until $(curl -u admin:$NEXUS_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
   printf '.'
   sleep 1  
 done
-printf 'Bootstrap complete!'
+printf '\n'
+echo 'Bootstrap complete!'
 
-printf 'Logging into vCenter'
+echo 'Logging into vCenter'
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
 govc about -u $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 govc session.login -u $GOVC_CONNECTION_STRING
 # why this fixes things, we don't know...
 govc library.ls -u $GOVC_CONNECTION_STRING > /dev/null
 
-printf 'Creating library and importing OVA'
+echo 'Creating library and importing OVA'
 if govc library.ls -u $GOVC_CONNECTION_STRING -json | jq -r '.[].name' | grep -q $VCENTER_LIBRARY_NAME; then
   echo "Library name: $VCENTER_LIBRARY_NAME already exists"
 else
@@ -354,7 +355,7 @@ else
   govc library.create -u $GOVC_CONNECTION_STRING -ds=$GOVC_DATASTORE $VCENTER_LIBRARY_NAME
 fi
 
-printf 'Checking if OVA already exists in library'
+echo 'Checking if OVA already exists in library'
 if govc library.ls -u $GOVC_CONNECTION_STRING $VCENTER_LIBRARY_NAME/* | grep -q $COREOS_OVA_NAME; then
   echo "OVA $COREOS_OVA_NAME already exists in library $VCENTER_LIBRARY_NAME"
 else
@@ -362,7 +363,7 @@ else
   govc library.import -u $GOVC_CONNECTION_STRING -n=$COREOS_OVA_NAME $VCENTER_LIBRARY_NAME $COREOS_OVA_URL
 fi
 
-printf 'Deploying VM from OVA'
+echo 'Deploying VM from OVA'
 govc library.deploy -u $GOVC_CONNECTION_STRING -host=$GOVC_HOST /$VCENTER_LIBRARY_NAME/$COREOS_OVA_NAME $GOVC_VM
 govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data=$(cat coreos/coreos.ign | base64 -w0)"
 govc vm.change -u $GOVC_CONNECTION_STRING -vm $GOVC_VM -e="guestinfo.ignition.config.data.encoding=base64"
