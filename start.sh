@@ -193,8 +193,10 @@ until $(curl -u admin:$NEXUS_TEMP_PASSWORD -X GET --output /dev/null --silent --
   # if the password is not set, get it from the container
   if [ -z "$NEXUS_TEMP_PASSWORD" ]; then
     NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
-    echo "Nexus temp password is: $NEXUS_TEMP_PASSWORD"
-    echo "Continuing to wait for Nexus to start"
+    if [ -n "$NEXUS_TEMP_PASSWORD" ]; then
+      echo "Nexus temp password is: $NEXUS_TEMP_PASSWORD"
+      echo "Continuing to wait for Nexus to start"
+    fi
   fi
 done
 # change the default admin password
