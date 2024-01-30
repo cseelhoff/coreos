@@ -175,7 +175,7 @@ echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf 
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 
 echo "Stopping and removing existing Traefik container"
-sudo docker-compose down traefik
+sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik down
 echo "Setting permissions to 600 on Traefik acme.json"
 chmod 600 bootstrap/traefik/data/acme.json
 echo "Creating proxy network for Traefik"
@@ -183,8 +183,9 @@ sudo docker network rm proxy > /dev/null
 sudo docker network create proxy > /dev/null
 echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
-sudo docker stop nexus
-sudo docker rm nexus
+echo "Stopping and removing existing Nexus container"
+sudo docker stop nexus > /dev/null
+sudo docker rm nexus > /dev/null
 sudo docker volume rm nexus-data
 sudo docker volume create --name nexus-data
 if [ -f backup/nexus-backup.tar.gz ]; then
