@@ -3,6 +3,7 @@
 if (Test-Path .env) {
     Get-Content .env | ForEach-Object {
         if ($_ -match '^(.*?)=(.*)$') {
+            Write-Host "Found variable in .env file with name $($matches[1]) and value $($matches[2])"
             Set-Content "env:\$($matches[1])" -Value $matches[2]
         }
     }
@@ -11,9 +12,10 @@ if (Test-Path .env) {
 $keys = @("CF_DNS_API_TOKEN", "GOVC_PASSWORD", "COREOS_ADMIN_PASSWORD")
 foreach ($key in $keys) {
     # Check if the key exists in the environment
-    if ([string]::IsNullOrEmpty($env:$key)) {
+    $value = Get-Content "env:$key"
+    if ([string]::IsNullOrEmpty($value)) {
         $value = Read-Host -Prompt "Enter a value for $key"
-        Add-Content -Path .env -Value "$key=$value"
+        Add-Content -Path .env -Value "export $key=$value"
     }
 }
 
@@ -23,44 +25,76 @@ Get-Content .env | ForEach-Object {
         Set-Content "env:\$($matches[1])" -Value $matches[2]
     }
 }
+function Convert-IPToInteger {
+    param (
+        [Parameter(ValueFromPipeline=$true)]
+        [string]$ip
+    )
+
+    process {
+        $octets = $ip.Split('.')
+        return ([int]$octets[0] * [Math]::Pow(2, 24)) + ([int]$octets[1] * [Math]::Pow(2, 16)) + ([int]$octets[2] * [Math]::Pow(2, 8)) + [int]$octets[3]
+    }
+}
+
+function Convert-IntToIP {
+    param (
+        [Parameter(ValueFromPipeline=$true)]
+        [int]$networkAddressInt
+    )
+    process {
+        write-host $networkAddressInt
+        return "{0}.{1}.{2}.{3}" -f (($networkAddressInt -shr 24) % 256), (($networkAddressInt -shr 16) % 256), (($networkAddressInt -shr 8) % 256), ($networkAddressInt % 256)
+    }
+}
 
 # making this a function so it can easily be collapsed in the editor
 function Get-NetworkInfo {
-    $HOST_IP = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null })[0].IPv4Address
-    $HOST_GATEWAY_IP = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null })[0].IPv4DefaultGateway
-    $HOST_SUBNET_MASK = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null })[0].IPv4Address.PrefixLength
-    $CIDR = $HOST_SUBNET_MASK
+    # get host ip of the first network adapter that has a default gateway
+    $HOST_IP = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null }) | Select-Object -First 1 -ExpandProperty IPv4Address | Select-Object -ExpandProperty IPAddress
+    $HOST_GATEWAY_IP = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null }) | Select-Object -First 1 -ExpandProperty IPv4DefaultGateway | Select-Object -ExpandProperty NextHop
+    $CIDR = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null }) | Select-Object -First 1 -ExpandProperty IPv4Address | Select-Object -First 1 -ExpandProperty PrefixLength
 
     # Calculate the network address
-    $HOST_IP_INT = [IPAddress]::Parse($HOST_IP).Address
-    $HOST_GATEWAY_IP_INT = [IPAddress]::Parse($HOST_GATEWAY_IP).Address
-    $NUM_IPS = [Math]::Pow(2, (32 - $CIDR))
-    $CIDR_INT = [BitConverter]::ToUInt32([BitConverter]::GetBytes([UInt32]::MaxValue << (32 - $CIDR)), 0)
-    $NETWORK_ADDRESS_INT = $HOST_IP_INT -band $CIDR_INT
-    $NETWORK_ADDRESS_IP = ([IPAddress]$NETWORK_ADDRESS_INT).IPAddressToString
-    $BROADCAST_INT = $NETWORK_ADDRESS_INT + $NUM_IPS - 1
+    $HOST_GATEWAY_IP_INT = $HOST_GATEWAY_IP | Convert-IPToInteger
+    # Convert the IP to an integer
+    $ipInt = $HOST_IP | Convert-IPToInteger
+    $numIps = [Math]::Pow(2, (32 - $cidr))
+    # Calculate the binary mask for the CIDR as an integer
+    $cidrInt = (([Math]::Pow(2, 32) -1) -shl (32 - $CIDR)) % [Math]::Pow(2, 32)
+
+    $networkAddressInt = $cidrInt -band $ipInt
+    $networkAddressIp = $networkAddressInt | Convert-IntToIP
+    Write-Host "NETWORK_ADDRESS_IP: $networkAddressIp"
+    $broadcastInt = $networkAddressInt + $numIps - 1
+    # Calculate the network address
+
+    # Convert the network address and broadcast address back to IPs
+    $networkAddressIp = ([IPAddress]$networkAddressInt).IPAddressToString
+    $broadcastAddressIp = ([IPAddress]$broadcastAddressInt).IPAddressToString
+
     # let MIN_IP_ADDRESS be the smaller of the host IP and the gateway IP
-    $MIN_IP_ADDRESS = [Math]::Min($HOST_IP_INT, $HOST_GATEWAY_IP_INT)
-    $MAX_IP_ADDRESS = [Math]::Max($HOST_IP_INT, $HOST_GATEWAY_IP_INT)
+    $MIN_IP_ADDRESS = [Math]::Min($ipInt, $HOST_GATEWAY_IP_INT)
+    $MAX_IP_ADDRESS = [Math]::Max($ipInt, $HOST_GATEWAY_IP_INT)
     
-    $RANGE1 = $MIN_IP_ADDRESS - $NETWORK_ADDRESS_INT
+    $RANGE1 = $MIN_IP_ADDRESS - $networkAddressInt
     $RANGE2 = $MAX_IP_ADDRESS - $MIN_IP_ADDRESS
-    $RANGE3 = $BROADCAST_INT - $MAX_IP_ADDRESS
+    $RANGE3 = $broadcastInt - $MAX_IP_ADDRESS
     # Find the greatest range
     if ($RANGE1 -gt $RANGE2 -and $RANGE1 -gt $RANGE3) {
-        $STARTING_IP_INT = $NETWORK_ADDRESS_INT + 1
-        $ENDING_IP_INT = $INT2 - 1
+        $STARTING_IP_INT = $networkAddressInt + 1
+        $ENDING_IP_INT = $MIN_IP_ADDRESS - 1
     } elseif ($RANGE2 -gt $RANGE1 -and $RANGE2 -gt $RANGE3) {
-        $STARTING_IP_INT = $INT2 + 1
-        $ENDING_IP_INT = $INT3 - 1
+        $STARTING_IP_INT = $MIN_IP_ADDRESS + 1
+        $ENDING_IP_INT = $MAX_IP_ADDRESS - 1
     } else {
-        $STARTING_IP_INT = $INT3 + 1
-        $ENDING_IP_INT = $BROADCAST_INT - 1
+        $STARTING_IP_INT = $MAX_IP_ADDRESS + 1
+        $ENDING_IP_INT = $broadcastInt - 1
     }
 
     # convert the network address back to a dotted decimal
-    $STARTING_IP = ([IPAddress]$STARTING_IP_INT).IPAddressToString
-    $ENDING_IP = ([IPAddress]$ENDING_IP_INT).IPAddressToString
+    $STARTING_IP = $STARTING_IP_INT | Convert-IntToIP
+    $ENDING_IP = $ENDING_IP_INT | Convert-IntToIP
     # return the HOST_IP, HOST_GATEWAY_IP, STARTING_IP, and ENDING_IP
     return @{
         HOST_IP = $HOST_IP
