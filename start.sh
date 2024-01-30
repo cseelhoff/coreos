@@ -227,12 +227,15 @@ add_dns_a_record $NEXUS_FRONTEND_FQDN $TRAEFIK_IP
 add_dns_a_record $DOCKER_REGISTRY_FRONTEND_FQDN $TRAEFIK_IP
 add_dns_a_record $GOVC_URL $GOVC_IP
 
+echo "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings"
+dig +short $NEXUS_FRONTEND_FQDN
 echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
 echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
-
+echo "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig after changing local DNS settings"
+dig +short $NEXUS_FRONTEND_FQDN
 echo "Stopping and removing existing Traefik container"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik down
 echo "Setting permissions to 600 on Traefik acme.json"
