@@ -122,6 +122,8 @@ butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/cor
 echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
 #mkdir -p $PIHOLE_ETC_PIHOLE_DIR
 #mkdir -p $PIHOLE_ETC_DNSMASQ_DIR
+sudo docker stop pihole
+sudo docker rm pihole
 sudo docker volume rm pihole
 sudo docker volume rm dnsmasq.d
 sudo docker run -d \
@@ -175,12 +177,16 @@ echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAI
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 
+sudo docker-compose down -p traefik
 echo "Creating proxy network for Traefik"
+sudo docker network rm proxy
 sudo docker network create proxy
 echo "Setting permissions to 600 on Traefik acme.json"
 chmod 600 bootstrap/traefik/data/acme.json
 echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
+sudo docker stop nexus
+sudo docker rm nexus
 sudo docker volume rm nexus-data
 sudo docker volume create --name nexus-data
 if [ -f backup/nexus-backup.tar.gz ]; then
