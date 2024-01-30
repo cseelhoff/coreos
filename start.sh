@@ -13,32 +13,91 @@ for key in "${keys[@]}"; do
 done
 source .env
 
+# making this a function so it can easily be collapsed in the editor
+get_network_info() {
+  if [ -n "$WSL_DISTRO_NAME" ]; then
+    HOST_IP=$(ipconfig.exe | grep 'Default Gateway . . . . . . . . . : [0-9]' -B9 | grep 'IPv4 Address' | tail -n1 | cut -d":" -f 2 | sed -e 's/\s*//g')
+    HOST_GATEWAY_IP=$(ipconfig.exe | grep 'Default Gateway . . . . . . . . . : [0-9]' | tail -n1 | cut -d":" -f 2 | sed -e 's/\s*//g')
+    HOST_SUBNET_MASK=$(ipconfig.exe | grep 'Default Gateway . . . . . . . . . : [0-9]' -B9 | grep 'Subnet Mask' | tail -n1 | cut -d":" -f 2 | sed -e 's/\s*//g')
+    SUBNET_MASK_INT=$(echo $HOST_SUBNET_MASK | awk -F. '{print ($1 * 2^24) + ($2 * 2^16) + ($3 * 2^8) + $4}')
+    SUBNET_MASK_INT_DIFF=$((4294967296 - $SUBNET_MASK_INT))
+    SHIFTED_INT=0
+    while [ $SUBNET_MASK_INT_DIFF -gt 1 ]; do
+      SUBNET_MASK_INT_DIFF=$(($SUBNET_MASK_INT_DIFF >> 1))
+      SHIFTED_INT=$(($SHIFTED_INT + 1))
+    done
+    CIDR=$((32 - $SHIFTED_INT))
+  else
+    HOST_IP=$(hostname -I | cut -d' ' -f1)
+    HOST_GATEWAY_IP=$(ip route | grep default | cut -d' ' -f3)
+    HOST_SUBNET_MASK=$(ip -o -f inet addr show | awk '/scope global/ {print $4}')
+    CIDR=$(echo $HOST_SUBNET_MASK | cut -d'/' -f2)
+  fi
+
+  # Calculate the network address
+  HOST_IP_INT=$(echo $HOST_IP | awk -F. '{print ($1 * 2^24) + ($2 * 2^16) + ($3 * 2^8) + $4}')
+  HOST_GATEWAY_IP_INT=$(echo $HOST_GATEWAY_IP | awk -F. '{print ($1 * 2^24) + ($2 * 2^16) + ($3 * 2^8) + $4}')
+  NUM_IPS=$((2**(32-$CIDR)))
+  CIDR_INT=$(( (0xFFFFFFFF << (32 - $CIDR)) & 0xFFFFFFFF ))
+  NETWORK_ADDRESS_INT=$(($HOST_IP_INT & $CIDR_INT))
+  NETWORK_ADDRESS_IP=$(printf "%d.%d.%d.%d" $(($NETWORK_ADDRESS_INT>>24&255)) $(($NETWORK_ADDRESS_INT>>16&255)) $(($NETWORK_ADDRESS_INT>>8&255)) $(($NETWORK_ADDRESS_INT&255)))
+  echo "NETWORK_ADDRESS_IP: $NETWORK_ADDRESS_IP"
+  BROADCAST_INT=$(($NETWORK_ADDRESS_INT + NUM_IPS - 1))
+
+  if [ $HOST_IP_INT -lt $HOST_GATEWAY_IP_INT ]; then
+    INT2=$HOST_IP_INT
+    INT3=$HOST_GATEWAY_IP_INT
+  else
+    INT2=$HOST_GATEWAY_IP_INT
+    INT3=$HOST_IP_INT
+  fi
+  RANGE1=$(($INT2 - $NETWORK_ADDRESS_INT))
+  RANGE2=$(($INT3 - $INT2))
+  RANGE3=$(($BROADCAST_INT - $INT3))
+  # Find the greatest range
+  if [ $RANGE1 -gt $RANGE2 ] && [ $RANGE1 -gt $RANGE3 ]; then
+    STARTING_IP_INT=$(($NETWORK_ADDRESS_INT+1))
+    ENDING_IP_INT=$(($INT2-1))
+  elif [ $RANGE2 -gt $RANGE1 ] && [ $RANGE2 -gt $RANGE3 ]; then
+    STARTING_IP_INT=$(($INT2+1))
+    ENDING_IP_INT=$(($INT3-1))
+  else
+    STARTING_IP_INT=$(($INT3+1))
+    ENDING_IP_INT=$(($BROADCAST_INT-1))
+  fi
+
+  # convert the network address back to a dotted decimal
+  STARTING_IP=$(printf "%d.%d.%d.%d" $(($STARTING_IP_INT>>24&255)) $(($STARTING_IP_INT>>16&255)) $(($STARTING_IP_INT>>8&255)) $(($STARTING_IP_INT&255)))
+  ENDING_IP=$(printf "%d.%d.%d.%d" $(($ENDING_IP_INT>>24&255)) $(($ENDING_IP_INT>>16&255)) $(($ENDING_IP_INT>>8&255)) $(($ENDING_IP_INT&255)))
+}
+get_network_info
+echo "HOST_IP: $HOST_IP"
+echo "HOST_GATEWAY_IP: $HOST_GATEWAY_IP"
+echo "STARTING_IP: $STARTING_IP"
+echo "ENDING_IP: $ENDING_IP"
+
 ### --- VARIABLES --- ###
 # NOTE: it is required to "export" any variables that are used in templates; also GOVC seems to require this
 export ORGANIZATION_NAME='177th Cyber Protection Team'
 export DOMAIN_NAME='177cpt.com'
 export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
 export TIMEZONE=America/Chicago
-DNS_SERVER_IP='10.0.1.10'
-# get all IP addresses of current machine
-ALL_IPS=$(hostname -I)
-
-#BOOTSTRAP_IP=$DNS_SERVER_IP
-DHCP_ROUTER_IP='10.0.1.2'
-DHCP_START_IP='10.0.1.11'
-BOOTSTRAP_IP=$DNS_SERVER_IP
-DHCP_END_IP='10.0.1.30'
 export GOVC_URL="vsphere2.us.177cpt.com"
-GOVC_IP='10.0.1.41'
 export GOVC_USERNAME="Administrator@VSPHERE.LOCAL"
 export GOVC_HOST="10.0.1.31"
 export GOVC_DATASTORE="esxi4_datastore"
-export GOVC_VM="coreos"
+export GOVC_VM="infravm"
 export GOVC_NETWORK="Internal Management"
-export GOVC_INSECURE=true
-export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
+DNS_SERVER_IP=$HOST_IP
+BOOTSTRAP_IP=$DNS_SERVER_IP
+DHCP_ROUTER_IP=$HOST_GATEWAY_IP
+DHCP_START_IP=$STARTING_IP
+DHCP_END_IP=$ENDING_IP
+GOVC_IP=$(dig +short $GOVC_URL)
 
 ### --- OPTIONAL VARIABLES --- ###
+export GOVC_INSECURE=true
+export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
 COREOS_OVA_URL="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova",
 COREOS_OVA_NAME="fedora-coreos-39.20240104.3.0-vmware.x86_64"
 PIHOLE_DOCKER_IMAGE=pihole/pihole:2024.01.0
