@@ -172,11 +172,12 @@ curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1
 echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
+
 echo "Creating proxy network for Traefik"
 sudo docker network create proxy
 echo "Setting permissions to 600 on Traefik acme.json"
 chmod 600 bootstrap/traefik/data/acme.json
-echo "Starting Traefik"
+echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 sudo docker volume create --name nexus-data
 if [ -f backup/nexus-backup.tar.gz ]; then
