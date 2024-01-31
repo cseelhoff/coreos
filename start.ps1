@@ -2,8 +2,8 @@
 # Store and retrieve secrets from .env file
 if (Test-Path .env) {
     Get-Content .env | ForEach-Object {
-        if ($_ -match '^(.*?)=(.*)$') {
-            Write-Host "Found variable in .env file with name $($matches[1]) and value $($matches[2])"
+        if ($_ -match '^export (.*?)=(.*)$') {
+            Write-Host "Found export variable in .env file with name $($matches[1]) and value $($matches[2])"
             Set-Content "env:\$($matches[1])" -Value $matches[2]
         }
     }
@@ -21,9 +21,11 @@ foreach ($key in $keys) {
 
 # Reload the .env file
 Get-Content .env | ForEach-Object {
-    if ($_ -match ('^(.*?)=' + "'" + '(.*)$' + "'")) {
+    if ($_ -match ('^export (.*?)=' + "'" + '(.*)' + "'$")) {
+        Write-Host "Found export variable in .env file with name $($matches[1]) and value $($matches[2])"
         Set-Content "env:\$($matches[1])" -Value $matches[2]
-    } elseif ($_ -match '^(.*?)=(.*)$') {
+    } elseif ($_ -match '^export (.*?)=(.*)$') {
+        Write-Host "Found export variable in .env file with name $($matches[1]) and value $($matches[2])"
         Set-Content "env:\$($matches[1])" -Value $matches[2]
     }
 }
@@ -160,6 +162,7 @@ $PIHOLE_PORT=8001
 $NEXUS_PORT=8081
 $DOCKER_REGISTRY_PORT=8002
 $VCENTER_LIBRARY_NAME='library'
+$env:DOCKER_CLI_HINTS='false'
 
 ### --- AUTO-GENERATED VARIABLES --- ###
 $env:PIHOLE_FRONTEND_FQDN="$PIHOLE_SHORTNAME.$env:DOMAIN_NAME"
@@ -183,10 +186,10 @@ $PIHOLE_INDEX_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/index.php"
 $PIHOLE_SETTINGS_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns"
 $PIHOLE_CUSTOM_DNS_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php"
 $NEXUS_SERIVICE_REST_URL="https://$env:NEXUS_FRONTEND_FQDN/service/rest/v1"
-$GOVC_CONNECTION_STRING="$env:GOVC_USERNAME:$env:GOVC_PASSWORD@$env:GOVC_URL"
+$GOVC_CONNECTION_STRING="$env:GOVC_USERNAME`:$env:GOVC_PASSWORD`@$env:GOVC_URL"
 $env:TRAEFIK_DATA_DIR = "$(Get-Location)/bootstrap/traefik/data"
 $env:TRAEFIK_AUTH = ((docker run --rm httpd:2.4-alpine htpasswd -nb admin $TRAEFIK_PASSWORD) | Select-Object -First 1).Replace("`$", '$$')
-$env:PORTAINER_BCRYPT = ((docker run --rm httpd:2.4-alpine htpasswd -nbB admin $PORTAINER_PASSWORD) | Select-Object -First 1).Replace("`$", '$$')
+$env:PORTAINER_BCRYPT = ((docker run --rm httpd:2.4-alpine htpasswd -nbB admin $env:PORTAINER_PASSWORD) | Select-Object -First 1).Replace("`$", '$$')
 $env:COREOS_ADMIN_PASSWORD_HASH = ((docker run --rm quay.io/coreos/mkpasswd mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD) | Select-Object -First 1).Replace("`$", '$$')
 Write-Host "Creating ssh keypair if it does not exist..."
 $sshKeyPath = "$env:HOMEDRIVE$env:HOMEPATH/.ssh"
@@ -228,7 +231,7 @@ Replace-EnvVars -InputFile "coreos/openldap/docker-compose.yml.tpl" -OutputFile 
 Replace-EnvVars -InputFile "coreos/coreos.bu.tpl" -OutputFile "coreos/coreos.bu"
 Set-Content -Path "coreos/awx/etc/tower/SECRET_KEY" -Value $AWX_SECRET_KEY
 $coreos_volume_map=(Get-Location).Path + '/coreos:/coreos'
-docker run --rm -it -v $coreos_map quay.io/coreos/butane:release --files-dir /coreos /coreos/coreos.bu --pretty --strict --output /coreos/coreos.ign
+docker run --rm -it -v $coreos_volume_map quay.io/coreos/butane:release --files-dir /coreos /coreos/coreos.bu --pretty --strict --output /coreos/coreos.ign
 
 function Remove-DockerContainer {
     param (
@@ -258,7 +261,7 @@ Remove-DockerContainer -containerName "pihole"
 Write-Host "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
 docker run -d `
   --name=pihole `
-  -h pihole `
+  -h pihole-virtual `
   -p 53:53/tcp -p 53:53/udp -p 67:67/udp -p 8001:80/tcp `
   -e DNSMASQ_LISTENING=all `
   -e TZ=$env:TIMEZONE `
@@ -268,7 +271,7 @@ docker run -d `
   -e DHCP_END=$DHCP_END_IP `
   -e DHCP_ROUTER=$DHCP_ROUTER_IP `
   -e PIHOLE_DOMAIN=$env:DOMAIN_NAME `
-  -e VIRTUAL_HOST=pihole-virtual `
+  -e VIRTUAL_HOST=pihole-virtual.$env:DOMAIN_NAME `
   -e WEBPASSWORD=$PIHOLE_PASSWORD `
   -v /etc/pihole/ `
   -v /etc/dnsmasq.d/ `
@@ -345,16 +348,16 @@ if (docker network inspect proxy) {
 }
 
 Write-Host "Creating proxy network for Traefik"
-docker network create proxy > $null
+docker network create proxy
 Write-Host "Starting Traefik with password: $TRAEFIK_PASSWORD"
 docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 
 
 Remove-DockerContainer -containerName "nexus"
 Write-Host "Checking if the volume named nexus-data exists"
-if (docker volume inspect nexus-data > $null 2>&1) {
+if (docker volume inspect nexus-data) {
   Write-Host "Volume 'nexus-data' exists. Removing volume..."
-  docker volume rm nexus-data > $null
+  docker volume rm nexus-data
 }
 Write-Host "Creating volume 'nexus-data'"
 docker volume create --name nexus-data
@@ -364,33 +367,43 @@ if (Test-Path backup/nexus-backup.tar.gz) {
 } else {
     Write-Host "No backup found, creating new Nexus"
     Write-Host "Starting Nexus"
-    docker run -d -p $env:NEXUS_PORT:$env:NEXUS_PORT -p $env:DOCKER_REGISTRY_PORT:$env:DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $env:NEXUS_DOCKER_IMAGE
-    Write-Host "Waiting for Nexus to start on: $env:NEXUS_SERIVICE_REST_URL/security/users"
-    do {
+    docker run -d -p $NEXUS_PORT`:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT`:$DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $NEXUS_DOCKER_IMAGE
+    
+    Write-Host "Waiting for Nexus container to start" -NoNewline    
+    while($true) {
+        $NEXUS_TEMP_PASSWORD = (docker exec nexus cat /nexus-data/admin.password) | Select-Object -First 1
+        if ([string]::IsNullOrEmpty($NEXUS_TEMP_PASSWORD) -eq $false) {
+            Write-Host "`nNexus temp password is: $NEXUS_TEMP_PASSWORD"
+            break
+        }
+        Write-Host "." -NoNewline
+        Start-Sleep -Seconds 1
+    }
+    # invoke web request with a get to $NEXUS_SERIVICE_REST_URL/security/users using basic web authentication
+    $Nexus_Encoded_Creds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes("admin:$NEXUS_TEMP_PASSWORD"))
+    $Nexus_Headers = @{Authorization = "Basic $Nexus_Encoded_Creds"}
+    Write-Host "Waiting for Nexus REST API to start on: $NEXUS_SERIVICE_REST_URL/security/users " -NoNewline 
+    while($true) {
+        if ((Invoke-WebRequest -Uri $NEXUS_SERIVICE_REST_URL/security/users -Method Get -Headers $Nexus_Headers -ErrorAction SilentlyContinue).StatusCode -eq 200) {
+            Write-Host "`nNexus REST API has started"
+            break
+        }
         Write-Host -NoNewline '.'
         Start-Sleep -Seconds 1
-        if ([string]::IsNullOrEmpty($env:NEXUS_TEMP_PASSWORD)) {
-            $env:NEXUS_TEMP_PASSWORD = (docker exec nexus cat /nexus-data/admin.password 2>$null) | Select-Object -First 1
-            if (-not [string]::IsNullOrEmpty($env:NEXUS_TEMP_PASSWORD)) {
-                Write-Host
-                Write-Host "Nexus temp password is: $env:NEXUS_TEMP_PASSWORD"
-                Write-Host "Continuing to wait for Nexus to start"
-            }
-        }
-    } until ((Invoke-WebRequest -Uri $env:NEXUS_SERIVICE_REST_URL/security/users -Method Head -Credential (New-Object System.Management.Automation.PSCredential ('admin', (ConvertTo-SecureString -String $env:NEXUS_TEMP_PASSWORD -AsPlainText -Force))) -ErrorAction SilentlyContinue).StatusCode -eq 200)
-    Write-Host
-    Write-Host "Changing Nexus password from: $env:NEXUS_TEMP_PASSWORD to: $env:NEXUS_PASSWORD"
-    Invoke-WebRequest -Uri $env:NEXUS_SERIVICE_REST_URL/security/users/admin/change-password -Method Put -Body $env:NEXUS_PASSWORD -ContentType "text/plain" -Credential (New-Object System.Management.Automation.PSCredential ('admin', (ConvertTo-SecureString -String $env:NEXUS_TEMP_PASSWORD -AsPlainText -Force)))
-    $nexus_creds = New-Object System.Management.Automation.PSCredential('admin', (ConvertTo-SecureString -String $env:NEXUS_PASSWORD -AsPlainText -Force))
+    }
+    Write-Host "Changing Nexus password from: $NEXUS_TEMP_PASSWORD to: $NEXUS_PASSWORD"
+    Invoke-WebRequest -Uri $NEXUS_SERIVICE_REST_URL/security/users/admin/change-password -Method Put -Body $NEXUS_PASSWORD -ContentType "text/plain" -Headers $Nexus_Headers
+    $Nexus_Encoded_Creds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes("admin:$NEXUS_PASSWORD"))
+    $Nexus_Headers = @{Authorization = "Basic $Nexus_Encoded_Creds"}
     Write-Host "Setting active realms to LdapRealm, DockerToken, and NexusAuthenticatingRealm"
-    Invoke-RestMethod -Uri "$env:NEXUS_SERIVICE_REST_URL/security/realms/active" -Method Put -Body '[
+    Invoke-RestMethod -Uri "$NEXUS_SERIVICE_REST_URL/security/realms/active" -Method Put -Body '[
             "LdapRealm",
             "DockerToken",
             "NexusAuthenticatingRealm"
-    ]' -ContentType "application/json" -Credential $nexus_creds
+    ]' -ContentType "application/json" -Headers $Nexus_Headers
 
     Write-Host "Creating docker-hosted repository"
-    Invoke-RestMethod -Uri "$env:NEXUS_SERIVICE_REST_URL/repositories/docker/hosted" -Method Post -Body '{
+    Invoke-RestMethod -Uri "$NEXUS_SERIVICE_REST_URL/repositories/docker/hosted" -Method Post -Body '{
         "name": "docker-hosted",
         "online": true,
         "storage": {
@@ -402,10 +415,10 @@ if (Test-Path backup/nexus-backup.tar.gz) {
             "v1Enabled": false,
             "forceBasicAuth": false
         }
-    }' -ContentType "application/json" -Credential $nexus_creds
+    }' -ContentType "application/json" -Headers $Nexus_Headers
 
     Write-Host "Creating docker-proxy repository"
-    Invoke-RestMethod -Uri "$env:NEXUS_SERIVICE_REST_URL/repositories/docker/proxy" -Method Post -Body '{
+    Invoke-RestMethod -Uri "$NEXUS_SERIVICE_REST_URL/repositories/docker/proxy" -Method Post -Body '{
         "name": "docker-proxy",
         "online": true,
         "storage": {
@@ -432,9 +445,9 @@ if (Test-Path backup/nexus-backup.tar.gz) {
         "dockerProxy": {
             "indexType": "HUB"
         }
-    }' -ContentType "application/json" -Credential $nexus_creds
+    }' -ContentType "application/json" -Headers $Nexus_Headers
     Write-Host "Creating ghcr-proxy repository"
-    Invoke-RestMethod -Uri "$env:NEXUS_SERIVICE_REST_URL/repositories/docker/proxy" -Method Post -Body '{
+    Invoke-RestMethod -Uri "$NEXUS_SERIVICE_REST_URL/repositories/docker/proxy" -Method Post -Body '{
             "name": "ghcr-proxy",
             "online": true,
             "storage": {
@@ -461,7 +474,7 @@ if (Test-Path backup/nexus-backup.tar.gz) {
             "dockerProxy": {
                 "indexType": "REGISTRY"
             }
-    }' -ContentType "application/json" -Credential $nexus_creds
+    }' -ContentType "application/json" -Headers $Nexus_Headers
     Write-Host "Creating docker-group repository for docker-hosted, docker-proxy, and ghcr-proxy"
     # Define the body of the request as a hashtable
     $jsonBody = @{
@@ -477,23 +490,19 @@ if (Test-Path backup/nexus-backup.tar.gz) {
         "docker" = @{
             "v1Enabled" = $false
             "forceBasicAuth" = $false
-            "httpPort" = $env:DOCKER_REGISTRY_PORT
+            "httpPort" = $DOCKER_REGISTRY_PORT
         }
     } | ConvertTo-Json
-    Invoke-RestMethod -Uri "$env:NEXUS_SERIVICE_REST_URL/repositories/docker/group" -Method Post -Body $jsonBody -ContentType "application/json" -Credential $nexus_creds
+    Invoke-RestMethod -Uri "$NEXUS_SERIVICE_REST_URL/repositories/docker/group" -Method Post -Body $jsonBody -ContentType "application/json" -Headers $Nexus_Headers
     Write-Host "Removing local docker images cache"
-    docker image rm $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:NEXUS_DOCKER_IMAGE
+    docker image rm $env:DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
     docker image rm $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:PORTAINER_DOCKER_IMAGE
-    #docker image rm $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:OPENLDAP_DOCKER_IMAGE
     docker image rm $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:TRAEFIK_DOCKER_IMAGE
-    #docker image rm $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:AWX_GHCR_IMAGE
 
     Write-Host "Caching docker images in Nexus"
-    docker pull $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:NEXUS_DOCKER_IMAGE
+    docker pull $env:DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
     docker pull $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:PORTAINER_DOCKER_IMAGE
-    #docker pull $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:OPENLDAP_DOCKER_IMAGE
     docker pull $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:TRAEFIK_DOCKER_IMAGE
-    #docker pull $env:DOCKER_REGISTRY_FRONTEND_FQDN/$env:AWX_GHCR_IMAGE
 
     Write-Host "Stopping Nexus to create backup"
     docker stop --time=120 nexus
@@ -502,16 +511,17 @@ if (Test-Path backup/nexus-backup.tar.gz) {
     if (!(Test-Path -Path backup)) {
         New-Item -ItemType Directory -Path backup
     }
-    docker run --rm -v nexus-data:/nexus-data -v $(Get-Location)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
+    $nexus_volume_map=(Get-Location).Path + '/backup:/backup'
+    docker run --rm -v nexus-data:/nexus-data -v $nexus_volume_map alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
 
     Write-Host "Starting Nexus"
     docker start nexus
 }
-Write-Host "Waiting for Nexus to start on: $env:NEXUS_SERIVICE_REST_URL/security/users"
+Write-Host "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
 do {
     Write-Host -NoNewline '.'
     Start-Sleep -Seconds 1
-} until ((Invoke-WebRequest -Uri $env:NEXUS_SERIVICE_REST_URL/security/users -Method Head -Credential (New-Object System.Management.Automation.PSCredential ('admin', (ConvertTo-SecureString -String $env:NEXUS_PASSWORD -AsPlainText -Force))) -ErrorAction SilentlyContinue).StatusCode -eq 200)
+} until (((Invoke-WebRequest -Uri $NEXUS_SERIVICE_REST_URL/security/users -Method Get -Headers $Nexus_Headers)).StatusCode -eq 200)
 Write-Host
 
 write-host "Creating backup of acme.json"
@@ -522,39 +532,47 @@ docker cp traefik:/data/acme.json backup/
 
 Write-Host 'Bootstrap complete!'
 
+if (!(Test-Path -Path govc.exe)) {
+    Write-Host "Downloading govc"
+    Invoke-WebRequest -uri https://github.com/vmware/govmomi/releases/download/v0.34.2/govc_Windows_x86_64.zip -OutFile govc_Windows_x86_64.zip
+    # extract specific file govc.exe from the zip
+    Expand-Archive -Path govc_Windows_x86_64.zip -DestinationPath . -Force
+    Remove-Item -Path govc_Windows_x86_64.zip
+}
+
 Write-Host "Logging into vCenter"
-govc about.cert -u $env:GOVC_URL -k -thumbprint | Out-File -Append $env:GOVC_TLS_KNOWN_HOSTS
-govc about -u $env:GOVC_USERNAME:$env:GOVC_PASSWORD@$env:GOVC_URL
-govc session.login -u $env:GOVC_CONNECTION_STRING
+.\govc about.cert -u $env:GOVC_URL -k -thumbprint | Out-File -Append $env:GOVC_TLS_KNOWN_HOSTS
+.\govc about -u $GOVC_CONNECTION_STRING
+.\govc session.login -u $GOVC_CONNECTION_STRING
 # why this fixes things, we don't know...
-govc library.ls -u $env:GOVC_CONNECTION_STRING > $null
+.\govc library.ls -u $GOVC_CONNECTION_STRING
 
 Write-Host "Creating library and importing OVA"
-if ((govc library.ls -u $env:GOVC_CONNECTION_STRING -json | ConvertFrom-Json).name -contains $env:VCENTER_LIBRARY_NAME) {
-    Write-Host "Library name: $env:VCENTER_LIBRARY_NAME already exists"
+if ((.\govc library.ls -u $GOVC_CONNECTION_STRING -json | ConvertFrom-Json).name -contains $VCENTER_LIBRARY_NAME) {
+    Write-Host "Library name: $VCENTER_LIBRARY_NAME already exists"
 } else {
-    Write-Host "Creating library $env:VCENTER_LIBRARY_NAME"
-    govc library.create -u $env:GOVC_CONNECTION_STRING -ds=$env:GOVC_DATASTORE $env:VCENTER_LIBRARY_NAME
+    Write-Host "Creating library $VCENTER_LIBRARY_NAME"
+    .\govc library.create -u $GOVC_CONNECTION_STRING -ds=$env:GOVC_DATASTORE $VCENTER_LIBRARY_NAME
 }
 
 Write-Host "Checking if OVA already exists in library"
-if ((govc library.ls -u $env:GOVC_CONNECTION_STRING $env:VCENTER_LIBRARY_NAME/*) -match $env:COREOS_OVA_NAME) {
-    Write-Host "OVA $env:COREOS_OVA_NAME already exists in library $env:VCENTER_LIBRARY_NAME"
+if ((.\govc library.ls -u $GOVC_CONNECTION_STRING $VCENTER_LIBRARY_NAME/*) -match $COREOS_OVA_NAME) {
+    Write-Host "OVA $COREOS_OVA_NAME already exists in library $env:VCENTER_LIBRARY_NAME"
 } else {
-    Write-Host "Importing OVA $env:COREOS_OVA_NAME into library $env:VCENTER_LIBRARY_NAME"
-    govc library.import -u $env:GOVC_CONNECTION_STRING -n=$env:COREOS_OVA_NAME $env:VCENTER_LIBRARY_NAME $env:COREOS_OVA_URL
+    Write-Host "Importing OVA $COREOS_OVA_NAME into library $VCENTER_LIBRARY_NAME"
+    .\govc library.import -u $GOVC_CONNECTION_STRING -n=$COREOS_OVA_NAME $VCENTER_LIBRARY_NAME $COREOS_OVA_URL
 }
 
 Write-Host "Deploying VM from OVA"
-govc library.deploy -u $env:GOVC_CONNECTION_STRING -host=$env:GOVC_HOST /$env:VCENTER_LIBRARY_NAME/$env:COREOS_OVA_NAME $env:GOVC_VM
+.\govc library.deploy -u $GOVC_CONNECTION_STRING -host $env:GOVC_HOST /$VCENTER_LIBRARY_NAME/$COREOS_OVA_NAME $env:GOVC_VM
 $ignitionConfigData = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content -Path coreos/coreos.ign -Raw)))
-govc vm.change -u $env:GOVC_CONNECTION_STRING -vm $env:GOVC_VM -e="guestinfo.ignition.config.data=$ignitionConfigData"
-govc vm.change -u $env:GOVC_CONNECTION_STRING -vm $env:GOVC_VM -e="guestinfo.ignition.config.data.encoding=base64"
-govc vm.change -u $env:GOVC_CONNECTION_STRING -vm $env:GOVC_VM -m=32000 -c=8
-govc vm.power -u $env:GOVC_CONNECTION_STRING -on $env:GOVC_VM
+.\govc vm.change -u $GOVC_CONNECTION_STRING -vm $env:GOVC_VM -e="guestinfo.ignition.config.data=$ignitionConfigData"
+.\govc vm.change -u $GOVC_CONNECTION_STRING -vm $env:GOVC_VM -e="guestinfo.ignition.config.data.encoding=base64"
+.\govc vm.change -u $GOVC_CONNECTION_STRING -vm $env:GOVC_VM -m=32000 -c=8
+.\govc vm.power -u $GOVC_CONNECTION_STRING -on $env:GOVC_VM
 
 Write-Host "Waiting for VM to be ready..."
-$VM_IP = govc vm.ip -u $env:GOVC_CONNECTION_STRING $env:GOVC_VM
+$VM_IP = .\govc vm.ip -u $GOVC_CONNECTION_STRING $env:GOVC_VM
 Write-Host "YOUR PORTAINER PASSWORD IS: $env:PORTAINER_PASSWORD"
 Write-Host "$env:GOVC_VM's IP: $VM_IP"
 Write-Host "$(Get-Date -Format "yyyy-MM-dd HH:mm:ss") -- deployment complete!"
@@ -564,6 +582,6 @@ ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeou
 $REPLY = Read-Host "Press y to delete the VM: "
 if ($REPLY -eq 'y' -or $REPLY -eq 'Y') {
     # delete the VM
-    govc vm.power -u $env:GOVC_CONNECTION_STRING -off $env:GOVC_VM
-    govc vm.destroy -u $env:GOVC_CONNECTION_STRING $env:GOVC_VM
+    govc vm.power -u $GOVC_CONNECTION_STRING -off $env:GOVC_VM
+    govc vm.destroy -u $GOVC_CONNECTION_STRING $env:GOVC_VM
 }

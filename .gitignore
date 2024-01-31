@@ -12,3 +12,5 @@ coreos/awx/etc/tower/SECRET_KEY
 coreos/guacamole/docker-compose.yml
 coreos/openldap/docker-compose.yml
 backup/*
+govc_Windows_x86_64.zip
+govc.exe
