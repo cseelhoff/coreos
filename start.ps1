@@ -21,7 +21,9 @@ foreach ($key in $keys) {
 
 # Reload the .env file
 Get-Content .env | ForEach-Object {
-    if ($_ -match '^(.*?)=(.*)$') {
+    if ($_ -match ('^(.*?)=' + "'" + '(.*)$' + "'")) {
+        Set-Content "env:\$($matches[1])" -Value $matches[2]
+    } elseif ($_ -match '^(.*?)=(.*)$') {
         Set-Content "env:\$($matches[1])" -Value $matches[2]
     }
 }
@@ -266,7 +268,7 @@ docker run -d `
   -e DHCP_END=$DHCP_END_IP `
   -e DHCP_ROUTER=$DHCP_ROUTER_IP `
   -e PIHOLE_DOMAIN=$env:DOMAIN_NAME `
-  -e VIRTUAL_HOST=pihole `
+  -e VIRTUAL_HOST=pihole-virtual `
   -e WEBPASSWORD=$PIHOLE_PASSWORD `
   -v /etc/pihole/ `
   -v /etc/dnsmasq.d/ `
@@ -317,8 +319,14 @@ Write-Host "Creating volume 'traefik-data'"
 docker volume create --name traefik-data
 Write-Host "Creating temporary container to copy acme.json to traefik-data volume"
 docker run --rm -d -v traefik-data:/data --name temp alpine tail -f /dev/null
-Write-Host "Copying acme.json to traefik-data volume"
-docker cp bootstrap/traefik/data/acme.json temp:/data
+# check if the acme.json file exists in the backup folder
+if (Test-Path backup/acme.json) {
+    Write-Host "Restoring acme.json from backup"
+    docker cp backup/acme.json temp:/data/
+} else {
+    Write-Host "Creating new acme.json"
+    docker exec temp touch /data/acme.json
+}
 Write-Host "Setting permissions to 600 on Traefik acme.json"
 docker exec temp chmod 600 /data/acme.json
 Write-Host "Stopping and removing temporary container"
@@ -340,6 +348,8 @@ Write-Host "Creating proxy network for Traefik"
 docker network create proxy > $null
 Write-Host "Starting Traefik with password: $TRAEFIK_PASSWORD"
 docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
+
+
 Remove-DockerContainer -containerName "nexus"
 Write-Host "Checking if the volume named nexus-data exists"
 if (docker volume inspect nexus-data > $null 2>&1) {
@@ -503,6 +513,13 @@ do {
     Start-Sleep -Seconds 1
 } until ((Invoke-WebRequest -Uri $env:NEXUS_SERIVICE_REST_URL/security/users -Method Head -Credential (New-Object System.Management.Automation.PSCredential ('admin', (ConvertTo-SecureString -String $env:NEXUS_PASSWORD -AsPlainText -Force))) -ErrorAction SilentlyContinue).StatusCode -eq 200)
 Write-Host
+
+write-host "Creating backup of acme.json"
+if (!(Test-Path -Path backup)) {
+    New-Item -ItemType Directory -Path backup
+}
+docker cp traefik:/data/acme.json backup/
+
 Write-Host 'Bootstrap complete!'
 
 Write-Host "Logging into vCenter"
