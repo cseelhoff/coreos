@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$(id -u)" != "0" ]; then
+    echo "This script must be run as root."
+    exit 1
+fi
+
 # if user is not in docker group, add them
 if ! groups | grep -q docker; then
   sudo usermod -aG docker $USER
