@@ -1,10 +1,5 @@
 #!/bin/bash
 
-if [ "$(id -u)" != "0" ]; then
-    echo "This script must be run as root."
-    exit 1
-fi
-
 # if user is not in docker group, add them
 if ! groups | grep -q docker; then
   sudo usermod -aG docker $USER
@@ -209,7 +204,7 @@ docker run -d \
   -e DNSMASQ_LISTENING=all \
   -e TZ=$TIMEZONE \
   -e PIHOLE_DNS_=$UPSTREAM_DNS_IPS \
-  -e DHCP_ACTIVE=true \
+  -e DHCP_ACTIVE=false \
   -e DHCP_START=$DHCP_START_IP \
   -e DHCP_END=$DHCP_END_IP \
   -e DHCP_ROUTER=$DHCP_ROUTER_IP \

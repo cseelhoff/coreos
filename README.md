@@ -1,6 +1,7 @@
-.env should be in root dirctory, if it exists. The start.sh will create it in the proper folder if it does not. 
+For the linux machines:
+If it exists, .env should be in \ dirctory. The start.sh will create it in the proper folder if does not exist. 
 
-acme.json should be in the ~/coreos/backup. Start.sh will create it there is if does not exist. #Should add a check
+acme.json should be in the ~/coreos/backup. Start.sh will create it there is if does not exist. #We need to add a check to see if it is in the /coreos and move it if it is
 
 
 #extra Seelhoff notes:
