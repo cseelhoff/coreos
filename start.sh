@@ -95,7 +95,7 @@ DHCP_END_IP=$ENDING_IP
 ### --- OPTIONAL VARIABLES --- ###
 export GOVC_INSECURE=true
 export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
-COREOS_OVA_URL="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova",
+COREOS_OVA_URL="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova"
 COREOS_OVA_NAME="fedora-coreos-39.20240104.3.0-vmware.x86_64"
 PIHOLE_DOCKER_IMAGE=pihole/pihole:2024.01.0
 export PORTAINER_DOCKER_IMAGE=portainer/portainer-ce:2.19.4
