@@ -7,8 +7,7 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-apt-get -y update 
-apt-get -y upgrade
+sudo apt-get update && sudo apt-get upgrade -y
 
 if dpkg -l | grep -q "openssh-server"; then
     echo "OpenSSH Server is installed."
