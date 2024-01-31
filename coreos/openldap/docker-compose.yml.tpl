@@ -5,8 +5,8 @@ services:
     container_name: openldap
     environment:
       LDAP_LOG_LEVEL: "256"
-      LDAP_ORGANISATION: "${ORGANISATION}"
-      LDAP_DOMAIN: "${DOMAINNAME}"
+      LDAP_ORGANISATION: "${ORGANISATION_NAME}"
+      LDAP_DOMAIN: "${DOMAIN_NAME}"
       LDAP_BASE_DN: ""
       LDAP_ADMIN_PASSWORD: "${LDAP_ADMIN_PASSWORD}"
       LDAP_CONFIG_PASSWORD: "${LDAP_CONFIG_PASSWORD}"

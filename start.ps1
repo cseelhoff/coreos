@@ -43,7 +43,6 @@ function Convert-IntToIP {
         [int]$networkAddressInt
     )
     process {
-        write-host $networkAddressInt
         return "{0}.{1}.{2}.{3}" -f (($networkAddressInt -shr 24) % 256), (($networkAddressInt -shr 16) % 256), (($networkAddressInt -shr 8) % 256), ($networkAddressInt % 256)
     }
 }
@@ -65,7 +64,6 @@ function Get-NetworkInfo {
 
     $networkAddressInt = $cidrInt -band $ipInt
     $networkAddressIp = $networkAddressInt | Convert-IntToIP
-    Write-Host "NETWORK_ADDRESS_IP: $networkAddressIp"
     $broadcastInt = $networkAddressInt + $numIps - 1
     # Calculate the network address
 
@@ -110,7 +108,7 @@ $HOST_GATEWAY_IP = $networkInfo.HOST_GATEWAY_IP
 $STARTING_IP = $networkInfo.STARTING_IP
 $ENDING_IP = $networkInfo.ENDING_IP
 ### --- VARIABLES --- ###
-$env:ORGANIZATION_NAME='177th Cyber Protection Team'
+$env:ORGANISATION_NAME='177th Cyber Protection Team'
 $env:DOMAIN_NAME='177cpt.com'
 $env:CLOUDFLARE_EMAIL='cseelhoff@gmail.com'
 $env:TIMEZONE='America/Chicago'
@@ -143,11 +141,11 @@ $env:AWX_GHCR_IMAGE='ansible/awx_devel:devel'
 $PIHOLE_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
 $TRAEFIK_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
 $NEXUS_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
-$LDAP_ADMIN_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
-$LDAP_CONFIG_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
-$PORTAINER_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
-$DJANGO_SUPERUSER_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
-$AWX_POSTGRES_PASSWORD='rzabMdUaDNuyQGmnYUQN'
+$env:LDAP_ADMIN_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
+$env:LDAP_CONFIG_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
+$env:PORTAINER_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
+$env:DJANGO_SUPERUSER_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
+$env:AWX_POSTGRES_PASSWORD='rzabMdUaDNuyQGmnYUQN'
 $BROADCAST_WEBSOCKET_SECRET='QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y='
 $AWX_SECRET_KEY='JDqxKuQemHEajsZVZFQs'
 $PIHOLE_SHORTNAME='pihole'
@@ -162,37 +160,38 @@ $DOCKER_REGISTRY_PORT=8002
 $VCENTER_LIBRARY_NAME='library'
 
 ### --- AUTO-GENERATED VARIABLES --- ###
-$env:PIHOLE_FRONTEND_FQDN="$PIHOLE_SHORTNAME.$DOMAIN_NAME"
-$env:NEXUS_FRONTEND_FQDN="$NEXUS_SHORTNAME.$DOMAIN_NAME"
-$env:DOCKER_REGISTRY_FRONTEND_FQDN="$DOCKER_SHORTNAME.$DOMAIN_NAME"
-$env:TRAEFIK_FQDN="$TRAEFIK_SHORTNAME.$DOMAIN_NAME"
-$env:PIHOLE_BACKEND_FQDN="$PIHOLE_SHORTNAME-backend01.$DOMAIN_NAME"
-$env:NEXUS_BACKEND_FQDN="$NEXUS_SHORTNAME-backend01.$DOMAIN_NAME"
-$env:DOCKER_REGISTRY_BACKEND_FQDN="$DOCKER_SHORTNAME-backend01.$DOMAIN_NAME"
+$env:PIHOLE_FRONTEND_FQDN="$PIHOLE_SHORTNAME.$env:DOMAIN_NAME"
+$env:NEXUS_FRONTEND_FQDN="$NEXUS_SHORTNAME.$env:DOMAIN_NAME"
+$env:DOCKER_REGISTRY_FRONTEND_FQDN="$DOCKER_SHORTNAME.$env:DOMAIN_NAME"
+$env:TRAEFIK_FQDN="$TRAEFIK_SHORTNAME.$env:DOMAIN_NAME"
+$env:PIHOLE_BACKEND_FQDN="$PIHOLE_SHORTNAME-backend01.$env:DOMAIN_NAME"
+$env:NEXUS_BACKEND_FQDN="$NEXUS_SHORTNAME-backend01.$env:DOMAIN_NAME"
+$env:DOCKER_REGISTRY_BACKEND_FQDN="$DOCKER_SHORTNAME-backend01.$env:DOMAIN_NAME"
 $TRAEFIK_IP=$BOOTSTRAP_IP
 $PIHOLE_IP=$BOOTSTRAP_IP
 $NEXUS_IP=$BOOTSTRAP_IP
 $DOCKER_REGISTRY_IP=$BOOTSTRAP_IP
-$env:PIHOLE_BACKEND_URL="http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT"
-$env:NEXUS_BACKEND_URL="http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT"
-$env:DOCKER_REGISTRY_BACKEND_URL="http://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT"
-$env:PORTAINER_LOCALHOST_URL="http://localhost:$PORTAINER_PORT"
-$PIHOLE_LOCALHOST_BASE_URL="http://localhost:$PIHOLE_PORT"
+$env:PIHOLE_BACKEND_URL="http://$env:PIHOLE_BACKEND_FQDN\:$PIHOLE_PORT"
+$env:NEXUS_BACKEND_URL="http://$env:NEXUS_BACKEND_FQDN\:$NEXUS_PORT"
+$env:DOCKER_REGISTRY_BACKEND_URL="http://$env:DOCKER_REGISTRY_BACKEND_FQDN\:$DOCKER_REGISTRY_PORT"
+$env:PORTAINER_LOCALHOST_URL="http://localhost\:$PORTAINER_PORT"
+$PIHOLE_LOCALHOST_BASE_URL="http://localhost\:$PIHOLE_PORT"
 $PIHOLE_LOGIN_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/login.php"
 $PIHOLE_INDEX_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/index.php"
 $PIHOLE_SETTINGS_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns"
 $PIHOLE_CUSTOM_DNS_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php"
-$NEXUS_SERIVICE_REST_URL="https://$NEXUS_FRONTEND_FQDN/service/rest/v1"
-$GOVC_CONNECTION_STRING="$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL"
+$NEXUS_SERIVICE_REST_URL="https://$env:NEXUS_FRONTEND_FQDN/service/rest/v1"
+$GOVC_CONNECTION_STRING="$env:GOVC_USERNAME:$env:GOVC_PASSWORD@$env:GOVC_URL"
 $env:TRAEFIK_DATA_DIR = "$(Get-Location)/bootstrap/traefik/data"
-$env:TRAEFIK_AUTH = docker run --rm httpd:2.4-alpine htpasswd -nb admin $TRAEFIK_PASSWORD | %{ $_ -replace "\\$", "`$`$" }
-$env:PORTAINER_BCRYPT = docker run --rm httpd:2.4-alpine htpasswd -nbB admin $PORTAINER_PASSWORD | %{ ($_ -split ":")[1] -replace "\\$", "`$`$" }
-$env:COREOS_ADMIN_PASSWORD_HASH = docker run --rm debian:latest bash -c "apt-get update && apt-get install -y whois && mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD"
+$env:TRAEFIK_AUTH = ((docker run --rm httpd:2.4-alpine htpasswd -nb admin $TRAEFIK_PASSWORD) | Select-Object -First 1).Replace("`$", '$$')
+$env:PORTAINER_BCRYPT = ((docker run --rm httpd:2.4-alpine htpasswd -nbB admin $PORTAINER_PASSWORD) | Select-Object -First 1).Replace("`$", '$$')
+$env:COREOS_ADMIN_PASSWORD_HASH = ((docker run --rm quay.io/coreos/mkpasswd mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD) | Select-Object -First 1).Replace("`$", '$$')
 Write-Host "Creating ssh keypair if it does not exist..."
-if (!(Test-Path -Path "~/.ssh/id_rsa")) {
-    ssh-keygen -t rsa -b 4096 -f "~/.ssh/id_rsa" -N '' > $null
+$sshKeyPath = "$env:HOMEDRIVE$env:HOMEPATH/.ssh"
+if (!(Test-Path -Path "$sshKeyPath/id_rsa")) {
+    ssh-keygen -t rsa -b 4096 -f "$sshKeyPath/id_rsa" -N '""'
 }
-$env:COREOS_SSH_PUBLIC_KEY = Get-Content "~/.ssh/id_rsa.pub"
+$env:COREOS_SSH_PUBLIC_KEY = Get-Content "$sshKeyPath/id_rsa.pub"
 
 Write-Host "Generating templates"
 
@@ -207,8 +206,8 @@ function Replace-EnvVars {
     $envVars = [regex]::Matches($content, '\${\w+}') | foreach { $_.Value } | Sort-Object -Unique
 
     foreach ($var in $envVars) {
-        $envVarName = $var.Trim('${', '}')
-        $envVarValue = Get-Variable -Name "env:$envVarName" -ValueOnly
+        $envVarName = $var.Replace('${', '').Replace('}', '')
+        $envVarValue = Get-Content "env:$envVarName"
         $content = $content.Replace($var, $envVarValue)
     }
 
@@ -340,7 +339,7 @@ if (Test-Path backup/nexus-backup.tar.gz) {
         Write-Host -NoNewline '.'
         Start-Sleep -Seconds 1
         if ([string]::IsNullOrEmpty($env:NEXUS_TEMP_PASSWORD)) {
-            $env:NEXUS_TEMP_PASSWORD = docker exec nexus cat /nexus-data/admin.password 2>$null
+            $env:NEXUS_TEMP_PASSWORD = (docker exec nexus cat /nexus-data/admin.password 2>$null) | Select-Object -First 1
             if (-not [string]::IsNullOrEmpty($env:NEXUS_TEMP_PASSWORD)) {
                 Write-Host
                 Write-Host "Nexus temp password is: $env:NEXUS_TEMP_PASSWORD"
