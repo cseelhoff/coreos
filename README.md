@@ -1,3 +1,9 @@
+.env should be in root dirctory, if it exists. The start.sh will create it in the proper folder if it does not. 
+
+acme.json should be in the ~/coreos/backup. Start.sh will create it there is if does not exist. #Should add a check
+
+
+#extra Seelhoff notes:
 butane --pretty --strict coreos.bu --output coreos.ign
 .\kvpctl.exe coreos add-ign .\coreos.ign
 .\kvpctl.exe coreos get
