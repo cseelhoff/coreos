@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# if user is not in docker group, add them
+if ! groups | grep -q docker; then
+  sudo usermod -aG docker $USER
+  newgrp docker
+  echo "You may need to log out and back in for the changes to take effect"
+  #exit 1
+fi
+
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
 [ -f .env ] && source .env
@@ -171,16 +179,16 @@ butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/cor
 remove_docker_container() {
     containerName=$1
     echo "Checking if the container named $containerName exists"
-    if sudo docker ps -a --format '{{.Names}}' | grep -q "$containerName"; then
+    if docker ps -a --format '{{.Names}}' | grep -q "$containerName"; then
         echo "Container '$containerName' exists. Checking if it is running"
-        if sudo docker ps --format '{{.Names}}' | grep -q "$containerName"; then
+        if docker ps --format '{{.Names}}' | grep -q "$containerName"; then
             echo "Container '$containerName' is running. Stopping container..."
-            sudo docker stop $containerName > /dev/null
+            docker stop $containerName > /dev/null
         else
             echo "Container '$containerName' is not running"
         fi
         echo "Removing container '$containerName'..."
-        sudo docker rm $containerName > /dev/null
+        docker rm $containerName > /dev/null
     else
         echo "Container '$containerName' does not exist"
     fi
@@ -189,7 +197,7 @@ remove_docker_container() {
 # Usage
 remove_docker_container "pihole"
 echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
-sudo docker run -d \
+docker run -d \
   --name=pihole \
   -h virtual-pihole \
   -e DNSMASQ_LISTENING=all \
@@ -230,9 +238,9 @@ $GOVC_IP $GOVC_URL
 echo "Append the custom DNS list to the pihole custom list file and restart the DNS service"
 
 dockerSHCommand="echo \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
-sudo docker exec pihole sh -c "$dockerSHCommand"
+docker exec pihole sh -c "$dockerSHCommand"
 
-#sudo docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
+#docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
 #echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 #curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
 echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
@@ -244,67 +252,67 @@ dig +short $NEXUS_FRONTEND_FQDN
 
 remove_docker_container "traefik"
 echo "Checking if the volume named traefik-data exists"
-if sudo docker volume inspect traefik-data > /dev/null 2>&1; then
+if docker volume inspect traefik-data > /dev/null 2>&1; then
   echo "Volume 'traefik-data' exists. Removing volume..."
-  sudo docker volume rm traefik-data
+  docker volume rm traefik-data
 fi
 echo "Creating volume 'traefik-data'"
-sudo docker volume create --name traefik-data
+docker volume create --name traefik-data
 echo "Creating temporary container to copy acme.json to traefik-data volume"
-sudo docker run --rm -d -v traefik-data:/data --name temp alpine tail -f /dev/null
+docker run --rm -d -v traefik-data:/data --name temp alpine tail -f /dev/null
 # check if the acme.json file exists in the backup folder
 if [ -f backup/acme.json ]; then
     echo "Restoring acme.json from backup"
-    sudo docker cp backup/acme.json temp:/data/
+    docker cp backup/acme.json temp:/data/
 else
     echo "Creating new acme.json"
-    sudo docker exec temp touch /data/acme.json
+    docker exec temp touch /data/acme.json
 fi
 
 echo "Setting permissions to 600 on Traefik acme.json"
-sudo docker exec temp chmod 600 /data/acme.json
+docker exec temp chmod 600 /data/acme.json
 echo "Stopping and removing temporary container"
-sudo docker stop temp
+docker stop temp
 
 echo "Checking if proxy network for Traefik exists"
-if sudo docker network inspect proxy >/dev/null 2>&1; then
+if docker network inspect proxy >/dev/null 2>&1; then
   echo "Proxy network exists. Checking if any containers are using it"
-  if sudo docker network inspect proxy | grep -q '"Containers": {}'; then
+  if docker network inspect proxy | grep -q '"Containers": {}'; then
     echo "No containers are using the proxy network. Removing the proxy network"
-    sudo docker network rm proxy > /dev/null
+    docker network rm proxy > /dev/null
   else
     echo "Other containers are still using the proxy network. Exiting script as failed."
     exit 1
   fi
 fi
 echo "Creating proxy network for Traefik"
-sudo docker network create proxy > /dev/null
+docker network create proxy > /dev/null
 echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
-sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
+docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
 
 remove_docker_container "nexus"
 
 echo "Checking if the volume named nexus-data exists"
-if sudo docker volume inspect nexus-data >/dev/null 2>&1; then
+if docker volume inspect nexus-data >/dev/null 2>&1; then
   echo "Volume 'nexus-data' exists. Removing volume..."
-  sudo docker volume rm nexus-data > /dev/null
+  docker volume rm nexus-data > /dev/null
 fi
 echo "Creating volume 'nexus-data'"
-sudo docker volume create --name nexus-data
+docker volume create --name nexus-data
 if [ -f backup/nexus-backup.tar.gz ]; then
   echo "Restoring Nexus from backup"
-  sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine tar -xzf /backup/nexus-backup.tar.gz -C /nexus-data
+  docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine tar -xzf /backup/nexus-backup.tar.gz -C /nexus-data
 else
   echo "No backup found, creating new Nexus"
   echo "Starting Nexus"
-  sudo docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $NEXUS_DOCKER_IMAGE
+  docker run -d -p $NEXUS_PORT:$NEXUS_PORT -p $DOCKER_REGISTRY_PORT:$DOCKER_REGISTRY_PORT --name nexus -v nexus-data:/nexus-data $NEXUS_DOCKER_IMAGE
   printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
   until $(curl -u admin:$NEXUS_TEMP_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
     printf '.'
     sleep 1
     # if the password is not set, get it from the container
     if [ -z "$NEXUS_TEMP_PASSWORD" ]; then
-      NEXUS_TEMP_PASSWORD=$(sudo docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
+      NEXUS_TEMP_PASSWORD=$(docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
       if [ -n "$NEXUS_TEMP_PASSWORD" ]; then
         printf "\n"
         echo "Nexus temp password is: $NEXUS_TEMP_PASSWORD"
@@ -417,27 +425,27 @@ else
   }" -X POST $NEXUS_SERIVICE_REST_URL/repositories/docker/group
 
   echo 'Removing local docker images cache'
-  sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
-  sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
-  #sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
-  sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
-  #sudo docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
+  docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
+  docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
+  #docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
+  docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
+  #docker image rm $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
   echo 'Caching docker images in Nexus'
-  sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
-  sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
-  #sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
-  sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
-  #sudo docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
+  docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$NEXUS_DOCKER_IMAGE
+  docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$PORTAINER_DOCKER_IMAGE
+  #docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$OPENLDAP_DOCKER_IMAGE
+  docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$TRAEFIK_DOCKER_IMAGE
+  #docker pull $DOCKER_REGISTRY_FRONTEND_FQDN/$AWX_GHCR_IMAGE
 
   #When stopping, be sure to allow sufficient time for the databases to fully shut down.
   echo 'Stopping Nexus to create backup'
-  sudo docker stop --time=120 nexus
+  docker stop --time=120 nexus
   echo 'Creating Nexus backup'
   # create a new backup directory if it does not exist
   [ -d backup ] || mkdir backup
-  sudo docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
+  docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
   echo 'Starting Nexus'
-  sudo docker start nexus
+  docker start nexus
 fi
 printf "Waiting for Nexus to start on: $NEXUS_SERIVICE_REST_URL/security/users"
 until $(curl -u admin:$NEXUS_PASSWORD -X GET --output /dev/null --silent --head --fail $NEXUS_SERIVICE_REST_URL/security/users); do
@@ -450,7 +458,7 @@ echo "Creating backup of acme.json"
 if [ ! -d "backup" ]; then
     mkdir backup
 fi
-sudo docker cp traefik:/data/acme.json backup/
+docker cp traefik:/data/acme.json backup/
 
 echo 'Bootstrap complete!'
 
