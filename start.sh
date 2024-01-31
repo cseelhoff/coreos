@@ -23,7 +23,7 @@ get_network_info() {
   # Calculate the network address
   HOST_IP_INT=$(echo $HOST_IP | awk -F. '{print ($1 * 2^24) + ($2 * 2^16) + ($3 * 2^8) + $4}')
   HOST_GATEWAY_IP_INT=$(echo $HOST_GATEWAY_IP | awk -F. '{print ($1 * 2^24) + ($2 * 2^16) + ($3 * 2^8) + $4}')
-  NUM_IPS=$(2**(32-$CIDR)
+  NUM_IPS=$(2**(32-$CIDR))
   CIDR_INT=$( (0xFFFFFFFF << (32 - $CIDR)) & 0xFFFFFFFF )
   NETWORK_ADDRESS_INT=$(($HOST_IP_INT & $CIDR_INT))
   NETWORK_ADDRESS_IP=$(printf "%d.%d.%d.%d" $(($NETWORK_ADDRESS_INT>>24&255)) $(($NETWORK_ADDRESS_INT>>16&255)) $(($NETWORK_ADDRESS_INT>>8&255)) $(($NETWORK_ADDRESS_INT&255)))
