@@ -166,33 +166,39 @@ echo $AWX_SECRET_KEY > coreos/awx/etc/tower/SECRET_KEY
 butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/coreos.ign
 
 ### --- MAIN --- ###
-echo "Check if the container named pihole exists"
-if sudo docker ps -a --format '{{.Names}}' | grep -q "pihole"; then
-  echo "Container 'pihole' exists. Checking if it is running"
-  if sudo docker ps --format '{{.Names}}' | grep -q "pihole"; then
-    echo "Container 'pihole' is running. Stopping container..."
-    sudo docker stop pihole > /dev/null
-  else
-    echo "Container 'pihole' is not running"
-  fi
-  echo "Removing container 'pihole'..."
-  sudo docker rm pihole > /dev/null
-else
-  echo "Container 'pihole' does not exist"
-fi
+remove_docker_container() {
+    containerName=$1
+    echo "Checking if the container named $containerName exists"
+    if sudo docker ps -a --format '{{.Names}}' | grep -q "$containerName"; then
+        echo "Container '$containerName' exists. Checking if it is running"
+        if sudo docker ps --format '{{.Names}}' | grep -q "$containerName"; then
+            echo "Container '$containerName' is running. Stopping container..."
+            sudo docker stop $containerName > /dev/null
+        else
+            echo "Container '$containerName' is not running"
+        fi
+        echo "Removing container '$containerName'..."
+        sudo docker rm $containerName > /dev/null
+    else
+        echo "Container '$containerName' does not exist"
+    fi
+}
+
+# Usage
+remove_docker_container "pihole"
 echo "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is $PIHOLE_PASSWORD"
 sudo docker run -d \
   --name=pihole \
-  -h pihole \
+  -h virtual-pihole \
   -e DNSMASQ_LISTENING=all \
   -e TZ=$TIMEZONE \
   -e PIHOLE_DNS_=$UPSTREAM_DNS_IPS \
   -e DHCP_ACTIVE=true \
-  -e DHCP_START_IP=$DHCP_START_IP \
-  -e DHCP_END_IP=$DHCP_END_IP \
-  -e DHCP_ROUTER_IP=$DHCP_ROUTER_IP \
+  -e DHCP_START=$DHCP_START_IP \
+  -e DHCP_END=$DHCP_END_IP \
+  -e DHCP_ROUTER=$DHCP_ROUTER_IP \
   -e PIHOLE_DOMAIN=$DOMAIN_NAME \
-  -e VIRTUAL_HOST=pihole \
+  -e VIRTUAL_HOST=virtual-pihole.$DOMAIN_NAME \
   -e WEBPASSWORD=$PIHOLE_PASSWORD \
   -e WEB_PORT=$PIHOLE_PORT \
   -v /etc/pihole/ \
@@ -202,7 +208,9 @@ sudo docker run -d \
   --network=host \
   $PIHOLE_DOCKER_IMAGE
 
-echo "Append the custom DNS list to the pihole custom list file and restart the DNS service"
+echo "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings"
+dig +short $NEXUS_FRONTEND_FQDN
+
 # Define the custom DNS list
 CUSTOM_DNS_LIST="
 $PIHOLE_IP $PIHOLE_BACKEND_FQDN
@@ -213,36 +221,49 @@ $TRAEFIK_IP $TRAEFIK_FQDN
 $TRAEFIK_IP $PIHOLE_FRONTEND_FQDN
 $TRAEFIK_IP $NEXUS_FRONTEND_FQDN
 $TRAEFIK_IP $DOCKER_REGISTRY_FRONTEND_FQDN
+$GOVC_IP vsphere2.177cpt.com
 $GOVC_IP $GOVC_URL
 "
 # Append the custom DNS list to the pihole custom list file and restart the DNS service
-sudo docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
-echo "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings"
-dig +short $NEXUS_FRONTEND_FQDN
-echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
-curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
+echo "Append the custom DNS list to the pihole custom list file and restart the DNS service"
+
+dockerSHCommand="echo \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
+sudo docker exec pihole sh -c "$dockerSHCommand"
+
+#sudo docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
+#echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
+#curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
 echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 echo "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig after changing local DNS settings"
 dig +short $NEXUS_FRONTEND_FQDN
 #echo "Stopping and removing existing Traefik container"
-echo "Checking if the container named traefik exists"
-if sudo docker ps -a --format '{{.Names}}' | grep -q "traefik"; then
-  echo "Container 'traefik' exists. Checking if it is running"
-  if sudo docker ps --format '{{.Names}}' | grep -q "traefik"; then
-    echo "Container 'traefik' is running. Stopping container..."
-    sudo docker stop traefik > /dev/null
-  else
-    echo "Container 'traefik' is not running"
-  fi
-  echo "Removing container 'traefik'..."
-  sudo docker rm traefik > /dev/null
-else
-  echo "Container 'traefik' does not exist"
+
+remove_docker_container "traefik"
+echo "Checking if the volume named traefik-data exists"
+if sudo docker volume inspect traefik-data > /dev/null 2>&1; then
+  echo "Volume 'traefik-data' exists. Removing volume..."
+  sudo docker volume rm traefik-data
 fi
+echo "Creating volume 'traefik-data'"
+sudo docker volume create --name traefik-data
+echo "Creating temporary container to copy acme.json to traefik-data volume"
+sudo docker run --rm -d -v traefik-data:/data --name temp alpine tail -f /dev/null
+# check if the acme.json file exists in the backup folder
+if [ -f backup/acme.json ]; then
+    echo "Restoring acme.json from backup"
+    sudo docker cp backup/acme.json temp:/data/
+else
+    echo "Creating new acme.json"
+    sudo docker exec temp touch /data/acme.json
+fi
+
 echo "Setting permissions to 600 on Traefik acme.json"
-chmod 600 bootstrap/traefik/data/acme.json
+sudo docker exec temp chmod 600 /data/acme.json
+echo "Stopping and removing temporary container"
+sudo docker stop temp
+
 echo "Checking if proxy network for Traefik exists"
 if sudo docker network inspect proxy >/dev/null 2>&1; then
   echo "Proxy network exists. Checking if any containers are using it"
@@ -258,20 +279,9 @@ echo "Creating proxy network for Traefik"
 sudo docker network create proxy > /dev/null
 echo "Starting Traefik with password: $TRAEFIK_PASSWORD"
 sudo docker-compose -f bootstrap/traefik/docker-compose.yml -p traefik up -d
-echo "Checking if the container named nexus exists"
-if sudo docker ps -a --format '{{.Names}}' | grep -q "nexus"; then
-  echo "Container 'nexus' exists. Checking if it is running"
-  if sudo docker ps --format '{{.Names}}' | grep -q "nexus"; then
-    echo "Container 'nexus' is running. Stopping container..."
-    sudo docker stop nexus > /dev/null
-  else
-    echo "Container 'nexus' is not running"
-  fi
-  echo "Removing container 'nexus'..."
-  sudo docker rm nexus > /dev/null
-else
-  echo "Container 'nexus' does not exist"
-fi
+
+remove_docker_container "nexus"
+
 echo "Checking if the volume named nexus-data exists"
 if sudo docker volume inspect nexus-data >/dev/null 2>&1; then
   echo "Volume 'nexus-data' exists. Removing volume..."
@@ -433,11 +443,18 @@ until $(curl -u admin:$NEXUS_PASSWORD -X GET --output /dev/null --silent --head 
   sleep 1  
 done
 printf '\n'
+
+echo "Creating backup of acme.json"
+if [ ! -d "backup" ]; then
+    mkdir backup
+fi
+sudo docker cp traefik:/data/acme.json backup/
+
 echo 'Bootstrap complete!'
 
 echo 'Logging into vCenter'
 govc about.cert -u $GOVC_URL -k -thumbprint | tee -a $GOVC_TLS_KNOWN_HOSTS
-govc about -u $GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
+govc about -u $GOVC_CONNECTION_STRING
 govc session.login -u $GOVC_CONNECTION_STRING
 # why this fixes things, we don't know...
 govc library.ls -u $GOVC_CONNECTION_STRING > /dev/null
