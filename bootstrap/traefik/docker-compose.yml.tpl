@@ -18,8 +18,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${TRAEFIK_DATA_DIR}/traefik.yml:/traefik.yml:ro
-      - ${TRAEFIK_DATA_DIR}/acme.json:/acme.json
       - ${TRAEFIK_DATA_DIR}/config.yml:/config.yml:ro
+      - traefik-data:/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.entrypoints=http"
@@ -36,7 +36,9 @@ services:
       - "traefik.http.routers.traefik-secure.tls.domains[0].main=${DOMAIN_NAME}"
       - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.${DOMAIN_NAME}"
       - "traefik.http.routers.traefik-secure.service=api@internal"
-
+volumes:
+  traefik-data:
+    external: true
 networks:
   proxy:
     external: true

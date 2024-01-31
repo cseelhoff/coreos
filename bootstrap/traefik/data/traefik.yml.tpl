@@ -24,7 +24,7 @@ certificatesResolvers:
   cloudflare:
     acme:
       email: "${CLOUDFLARE_EMAIL}"
-      storage: acme.json
+      storage: /data/acme.json
       dnsChallenge:
         provider: cloudflare
         #disablePropagationCheck: true # uncomment this if you have issues pulling certificates through cloudflare, By setting this flag to true disables the need to wait for the propagation of the TXT record to all authoritative name servers.

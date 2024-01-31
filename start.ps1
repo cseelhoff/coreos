@@ -171,11 +171,11 @@ $TRAEFIK_IP=$BOOTSTRAP_IP
 $PIHOLE_IP=$BOOTSTRAP_IP
 $NEXUS_IP=$BOOTSTRAP_IP
 $DOCKER_REGISTRY_IP=$BOOTSTRAP_IP
-$env:PIHOLE_BACKEND_URL="http://$env:PIHOLE_BACKEND_FQDN\:$PIHOLE_PORT"
-$env:NEXUS_BACKEND_URL="http://$env:NEXUS_BACKEND_FQDN\:$NEXUS_PORT"
-$env:DOCKER_REGISTRY_BACKEND_URL="http://$env:DOCKER_REGISTRY_BACKEND_FQDN\:$DOCKER_REGISTRY_PORT"
-$env:PORTAINER_LOCALHOST_URL="http://localhost\:$PORTAINER_PORT"
-$PIHOLE_LOCALHOST_BASE_URL="http://localhost\:$PIHOLE_PORT"
+$env:PIHOLE_BACKEND_URL="http://$env:PIHOLE_BACKEND_FQDN`:$PIHOLE_PORT"
+$env:NEXUS_BACKEND_URL="http://$env:NEXUS_BACKEND_FQDN`:$NEXUS_PORT"
+$env:DOCKER_REGISTRY_BACKEND_URL="http://$env:DOCKER_REGISTRY_BACKEND_FQDN`:$DOCKER_REGISTRY_PORT"
+$env:PORTAINER_LOCALHOST_URL="http://localhost`:$PORTAINER_PORT"
+$PIHOLE_LOCALHOST_BASE_URL="http://localhost`:$PIHOLE_PORT"
 $PIHOLE_LOGIN_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/login.php"
 $PIHOLE_INDEX_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/index.php"
 $PIHOLE_SETTINGS_URL="$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns"
@@ -218,7 +218,7 @@ function Replace-EnvVars {
 Replace-EnvVars -InputFile "bootstrap/traefik/docker-compose.yml.tpl" -OutputFile "bootstrap/traefik/docker-compose.yml"
 Replace-EnvVars -InputFile "bootstrap/traefik/data/config.yml.tpl" -OutputFile "bootstrap/traefik/data/config.yml"
 Replace-EnvVars -InputFile "bootstrap/traefik/data/traefik.yml.tpl" -OutputFile "bootstrap/traefik/data/traefik.yml"
-Replace-EnvVars -InputFile "coreos/awx/docker-compose.yml.tpl" -OutputFile "bootstrap/traefik/docker-compose.yml"
+Replace-EnvVars -InputFile "coreos/awx/docker-compose.yml.tpl" -OutputFile "coreos/awx/docker-compose.yml"
 Replace-EnvVars -InputFile "coreos/awx/etc/tower/conf.d/database.py.tpl" -OutputFile "coreos/awx/etc/tower/conf.d/database.py"
 Replace-EnvVars -InputFile "coreos/awx/etc/tower/conf.d/websocket_secret.py.tpl" -OutputFile "coreos/awx/etc/tower/conf.d/websocket_secret.py"
 Replace-EnvVars -InputFile "coreos/guacamole/docker-compose.yml.tpl" -OutputFile "coreos/guacamole/docker-compose.yml"
@@ -289,6 +289,7 @@ $TRAEFIK_IP $env:TRAEFIK_FQDN
 $TRAEFIK_IP $env:PIHOLE_FRONTEND_FQDN
 $TRAEFIK_IP $env:NEXUS_FRONTEND_FQDN
 $TRAEFIK_IP $env:DOCKER_REGISTRY_FRONTEND_FQDN
+$GOVC_IP vsphere2.177cpt.com
 $GOVC_IP $env:GOVC_URL
 "@
 $escapedList = $CUSTOM_DNS_LIST.Replace("`n", "\n").Replace("`r", "")
@@ -303,26 +304,38 @@ $netconfig | Set-DnsClientServerAddress -ServerAddresses "127.0.0.1"
 # set the search domain to $DOMAIN_NAME
 $netconfig | Set-DnsClient -ConnectionSpecificSuffix $env:DOMAIN_NAME
 
-
 Write-Host "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig after changing local DNS settings"
 Resolve-DnsName $env:NEXUS_FRONTEND_FQDN | Select-Object -ExpandProperty IPAddress
 
 Remove-DockerContainer -containerName "traefik"
+Write-Host "Checking if the volume named traefik-data exists"
+if (docker volume inspect traefik-data) {
+  Write-Host "Volume 'traefik-data' exists. Removing volume..."
+  docker volume rm traefik-data
+}
+Write-Host "Creating volume 'traefik-data'"
+docker volume create --name traefik-data
+Write-Host "Creating temporary container to copy acme.json to traefik-data volume"
+docker run --rm -d -v traefik-data:/data --name temp alpine tail -f /dev/null
+Write-Host "Copying acme.json to traefik-data volume"
+docker cp bootstrap/traefik/data/acme.json temp:/data
 Write-Host "Setting permissions to 600 on Traefik acme.json"
-#icacls bootstrap/traefik/data/acme.json /grant:r "BUILTIN\Administrators:(F)" "NT AUTHORITY\SYSTEM:(F)" "BUILTIN\Users:(R)" "Everyone:(R)"
-#icacls bootstrap/traefik/data/acme.json /inheritance:r
-icacls bootstrap/traefik/data/acme.json /grant Everyone:R
+docker exec temp chmod 600 /data/acme.json
+Write-Host "Stopping and removing temporary container"
+docker stop temp
+
 Write-Host "Checking if proxy network for Traefik exists"
-if (docker network inspect proxy > $null 2>&1) {
+if (docker network inspect proxy) {
   Write-Host "Proxy network exists. Checking if any containers are using it"
   if ((docker network inspect proxy) -match '"Containers": {}') {
     Write-Host "No containers are using the proxy network. Removing the proxy network"
-    docker network rm proxy > $null
+    docker network rm proxy
   } else {
     Write-Host "Other containers are still using the proxy network. Exiting script as failed."
     exit 1
   }
 }
+
 Write-Host "Creating proxy network for Traefik"
 docker network create proxy > $null
 Write-Host "Starting Traefik with password: $TRAEFIK_PASSWORD"
