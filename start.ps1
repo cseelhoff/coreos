@@ -146,14 +146,14 @@ $env:LDAP_CONFIG_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding
 $env:PORTAINER_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
 $env:DJANGO_SUPERUSER_PASSWORD=[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).Guid)).Replace('+','0')
 $env:AWX_POSTGRES_PASSWORD='rzabMdUaDNuyQGmnYUQN'
-$BROADCAST_WEBSOCKET_SECRET='QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y='
+$env:BROADCAST_WEBSOCKET_SECRET='QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y='
 $AWX_SECRET_KEY='JDqxKuQemHEajsZVZFQs'
 $PIHOLE_SHORTNAME='pihole'
 $NEXUS_SHORTNAME='nexus'
 $TRAEFIK_SHORTNAME='traefik'
 $DOCKER_SHORTNAME='docker'
 $UPSTREAM_DNS_IPS="1.1.1.1;1.0.0.1"
-$PORTAINER_PORT=9000
+$env:PORTAINER_PORT=9000
 $PIHOLE_PORT=8001
 $NEXUS_PORT=8081
 $DOCKER_REGISTRY_PORT=8002
@@ -225,7 +225,8 @@ Replace-EnvVars -InputFile "coreos/guacamole/docker-compose.yml.tpl" -OutputFile
 Replace-EnvVars -InputFile "coreos/openldap/docker-compose.yml.tpl" -OutputFile "coreos/openldap/docker-compose.yml"
 Replace-EnvVars -InputFile "coreos/coreos.bu.tpl" -OutputFile "coreos/coreos.bu"
 Set-Content -Path "coreos/awx/etc/tower/SECRET_KEY" -Value $AWX_SECRET_KEY
-docker run --rm -v ./coreos:/coreos quay.io/coreos/butane:release --files-dir /coreos --pretty --strict /coreos/coreos.bu --output /coreos/coreos.ign
+$coreos_volume_map=(Get-Location).Path + '/coreos:/coreos'
+docker run --rm -it -v $coreos_map quay.io/coreos/butane:release --files-dir /coreos /coreos/coreos.bu --pretty --strict --output /coreos/coreos.ign
 
 function Remove-DockerContainer {
     param (
@@ -256,48 +257,55 @@ Write-Host "Deploying Pi-hole for DNS and DHCP on bootstrap server. Password is 
 docker run -d `
   --name=pihole `
   -h pihole `
+  -p 53:53/tcp -p 53:53/udp -p 67:67/udp -p 8001:80/tcp `
   -e DNSMASQ_LISTENING=all `
   -e TZ=$env:TIMEZONE `
   -e PIHOLE_DNS_=$UPSTREAM_DNS_IPS `
   -e DHCP_ACTIVE=true `
-  -e DHCP_ROUTER_IP=$DHCP_ROUTER_IP `
-  -e DHCP_START_IP=$DHCP_START_IP `
-  -e DHCP_END_IP=$DHCP_END_IP `
+  -e DHCP_START=$DHCP_START_IP `
+  -e DHCP_END=$DHCP_END_IP `
+  -e DHCP_ROUTER=$DHCP_ROUTER_IP `
   -e PIHOLE_DOMAIN=$env:DOMAIN_NAME `
   -e VIRTUAL_HOST=pihole `
   -e WEBPASSWORD=$PIHOLE_PASSWORD `
-  -e WEB_PORT=$PIHOLE_PORT `
   -v /etc/pihole/ `
   -v /etc/dnsmasq.d/ `
   --cap-add NET_ADMIN `
   --restart=unless-stopped `
-  --network=host `
   $PIHOLE_DOCKER_IMAGE
+
+#  -e WEB_PORT=$PIHOLE_PORT `
+#  --network=host `
+
+Write-Host "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings"
+Resolve-DnsName $env:NEXUS_FRONTEND_FQDN | Select-Object -ExpandProperty IPAddress
 
 # Define the custom DNS list
 $CUSTOM_DNS_LIST = @"
-$PIHOLE_IP $PIHOLE_BACKEND_FQDN
-$NEXUS_IP $PIHOLE_BACKEND_FQDN
-$NEXUS_IP $NEXUS_BACKEND_FQDN
-$DOCKER_REGISTRY_IP $DOCKER_REGISTRY_BACKEND_FQDN
-$TRAEFIK_IP $TRAEFIK_FQDN
-$TRAEFIK_IP $PIHOLE_FRONTEND_FQDN
-$TRAEFIK_IP $NEXUS_FRONTEND_FQDN
-$TRAEFIK_IP $DOCKER_REGISTRY_FRONTEND_FQDN
-$GOVC_IP $GOVC_URL
+$PIHOLE_IP $env:PIHOLE_BACKEND_FQDN
+$NEXUS_IP $env:NEXUS_BACKEND_FQDN
+$DOCKER_REGISTRY_IP $env:DOCKER_REGISTRY_BACKEND_FQDN
+$TRAEFIK_IP $env:TRAEFIK_FQDN
+$TRAEFIK_IP $env:PIHOLE_FRONTEND_FQDN
+$TRAEFIK_IP $env:NEXUS_FRONTEND_FQDN
+$TRAEFIK_IP $env:DOCKER_REGISTRY_FRONTEND_FQDN
+$GOVC_IP $env:GOVC_URL
 "@
-
+$escapedList = $CUSTOM_DNS_LIST.Replace("`n", "\n").Replace("`r", "")
 # Append the custom DNS list to the pihole custom list file and restart the DNS service
-docker exec -it pihole sh -c "echo -e `"$CUSTOM_DNS_LIST`" >> /etc/pihole/custom.list && pihole restartdns"
-Write-Host "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings"
-dig +short $NEXUS_FRONTEND_FQDN
-Write-Host "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
-Invoke-WebRequest -Uri $PIHOLE_SETTINGS_URL -Method POST -Body "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" -UseBasicParsing -SessionVariable cookies -OutFile $null
-Write-Host "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
-Set-Content -Path /etc/resolv.conf -Value "nameserver 127.0.0.1`nsearch $DOMAIN_NAME"
-Set-Content -Path /etc/systemd/resolved.conf -Value "[Resolve]`nDNS=127.0.0.1`nDNSStubListener=no`n"
+$dockerSHCommand = 'echo \"' + $escapedList + '\" >> /etc/pihole/custom.list && pihole restartdns'
+docker exec pihole sh -c $dockerSHCommand
+
+Write-Host "Setting Windows network settings to use only the DNS Server 127.0.0.1 (Pi-hole) and setting search domain to $env:DOMAIN_NAME"
+$netconfig=(Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null }) | Select-Object -First 1
+# set the DNS server to only use 127.0.0.1
+$netconfig | Set-DnsClientServerAddress -ServerAddresses "127.0.0.1"
+# set the search domain to $DOMAIN_NAME
+$netconfig | Set-DnsClient -ConnectionSpecificSuffix $env:DOMAIN_NAME
+
+
 Write-Host "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig after changing local DNS settings"
-dig +short $NEXUS_FRONTEND_FQDN
+Resolve-DnsName $env:NEXUS_FRONTEND_FQDN | Select-Object -ExpandProperty IPAddress
 
 Remove-DockerContainer -containerName "traefik"
 Write-Host "Setting permissions to 600 on Traefik acme.json"
