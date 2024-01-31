@@ -17,17 +17,19 @@ source .env
 get_network_info() {
   HOST_IP=$(hostname -I | cut -d' ' -f1)
   HOST_GATEWAY_IP=$(ip route | grep default | cut -d' ' -f3)
-  HOST_SUBNET_MASK=$(ip -o -f inet addr show | awk '/scope global/ {print $4}')
+  # get primary network interface from ip route
+  PRIMARY_NETWORK_INTERFACE=$(ip route | grep default | cut -d' ' -f5)
+  HOST_SUBNET_MASK=$(ip -o -f inet addr show | grep $PRIMARY_NETWORK_INTERFACE | awk '/scope global/ {print $4}')
   CIDR=$(echo $HOST_SUBNET_MASK | cut -d'/' -f2)
 
   # Calculate the network address
   HOST_IP_INT=$(echo $HOST_IP | awk -F. '{print ($1 * 2^24) + ($2 * 2^16) + ($3 * 2^8) + $4}')
   HOST_GATEWAY_IP_INT=$(echo $HOST_GATEWAY_IP | awk -F. '{print ($1 * 2^24) + ($2 * 2^16) + ($3 * 2^8) + $4}')
-  NUM_IPS=$(2**(32-$CIDR))
-  CIDR_INT=$( (0xFFFFFFFF << (32 - $CIDR)) & 0xFFFFFFFF )
+  NUM_IPS=$((2**(32-$CIDR)))
+  CIDR_INT=$(( (0xFFFFFFFF << (32 - $CIDR)) & 0xFFFFFFFF ))
   NETWORK_ADDRESS_INT=$(($HOST_IP_INT & $CIDR_INT))
   NETWORK_ADDRESS_IP=$(printf "%d.%d.%d.%d" $(($NETWORK_ADDRESS_INT>>24&255)) $(($NETWORK_ADDRESS_INT>>16&255)) $(($NETWORK_ADDRESS_INT>>8&255)) $(($NETWORK_ADDRESS_INT&255)))
-  echo "NETWORK_ADDRESS_IP: $NETWORK_ADDRESS_IP"
+  #echo "NETWORK_ADDRESS_IP: $NETWORK_ADDRESS_IP"
   BROADCAST_INT=$(($NETWORK_ADDRESS_INT + NUM_IPS - 1))
 
   if [ $HOST_IP_INT -lt $HOST_GATEWAY_IP_INT ]; then
