@@ -27,3 +27,4 @@ https://go-acme.github.io/lego/dns/cloudflare/#api-tokens
 create an API token with the following permissions:
 Zone / Zone / Read
 Zone / DNS / Edit
+#more notes
