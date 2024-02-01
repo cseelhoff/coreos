@@ -497,6 +497,7 @@ VM_IP=$(govc vm.ip -u $GOVC_CONNECTION_STRING $GOVC_VM )
 echo "YOUR PORTAINER PASSWORD IS: $PORTAINER_PASSWORD"
 echo "$GOVC_VM's IP: $VM_IP"
 echo "`date +"%Y-%m-%d %T"` -- deployment complete!"
+echo "Automatically connecting to the VM using ssh"
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i ~/.ssh/id_rsa admin@$VM_IP
 
 # prompt user to press y to delete the VM
