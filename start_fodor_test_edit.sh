@@ -113,8 +113,7 @@ export PHPLDAPADMIN_DOCKER_IMAGE=osixia/phpldapadmin:0.9.0
 export AWX_GHCR_IMAGE=ansible/awx_devel:devel
 #PIHOLE_ETC_PIHOLE_DIR=$(pwd)/bootstrap/etc-pihole/
 #PIHOLE_ETC_DNSMASQ_DIR=$(pwd)/bootstrap/etc-dnsmasq.d/
-# replace symbols that would need to be wls
-eb encoded
+# replace symbols that would need to be web encoded
 PIHOLE_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 TRAEFIK_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 NEXUS_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
