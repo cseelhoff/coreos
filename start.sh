@@ -11,12 +11,17 @@ fi
 ### --- SECRETS --- ###
 # Store and retrieve secrets from .env file
 [ -f .env ] && source .env
-keys=("CF_DNS_API_TOKEN" "GOVC_PASSWORD" "COREOS_ADMIN_PASSWORD")
+keys=("CF_DNS_API_TOKEN" "GOVC_PASSWORD" "COREOS_ADMIN_PASSWORD" "ORGANIZATION_NAME" "DOMAIN_NAME" "CLOUDFLARE_EMAIL" "GOVC_URL" "GOVC_USERNAME" "GOVC_HOST" "GOVC_DATASTORE" "GOVC_VM" "GOVC_NETWORK" "GOVC_IP")
 for key in "${keys[@]}"; do
   # Check if the key exists in the environment
   if [ -z "${!key}" ]; then
-    read -p "Enter a value for $key: " value
-    echo "export $key='$value'" >> .env
+    if [ $key != 'GOVC_IP' ]; then
+      read -p "Enter a value for $key: " value
+      echo "export $key='$value'" >> .env
+    else
+      read -p "Enter a value for(this is the vcenter ip address) $key: " value
+      echo "$key='$value'" >> .env
+    fi
   fi
 done
 source .env
@@ -74,18 +79,18 @@ echo "ENDING_IP: $ENDING_IP"
 
 ### --- VARIABLES --- ###
 # NOTE: it is required to "export" any variables that are used in templates; also GOVC seems to require this
-export ORGANIZATION_NAME='177th Cyber Protection Team'
-export DOMAIN_NAME='177cpt.com'
-export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
-export TIMEZONE=America/Chicago
-export GOVC_URL="vsphere2.us.177cpt.com"
-export GOVC_USERNAME="Administrator@VSPHERE.LOCAL"
-export GOVC_HOST="10.0.1.31"
-export GOVC_DATASTORE="esxi4_datastore"
-export GOVC_VM="infravm"
-export GOVC_NETWORK="Internal Management"
-#GOVC_IP=$(dig +short $GOVC_URL)
-GOVC_IP="10.0.1.41"
+export TIMEZONE=$(timedatectl | grep "Time zone" | cut -d ":" -f 2 | cut -d " " -f 2)
+#export ORGANIZATION_NAME='177th Cyber Protection Team'
+#export DOMAIN_NAME='177cpt.com'
+#export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
+#export GOVC_URL="vsphere2.us.177cpt.com"
+#export GOVC_USERNAME="Administrator@VSPHERE.LOCAL"
+#export GOVC_HOST="10.0.1.31" #ESXI
+#export GOVC_DATASTORE="esxi4_datastore"
+#export GOVC_VM="infravm" 
+#export GOVC_NETWORK="Internal Management"
+#GOVC_IP=$(dig +short $GOVC_URL) can be used once DNS is working
+#GOVC_IP="10.0.1.41" #vcenter
 DNS_SERVER_IP=$HOST_IP
 BOOTSTRAP_IP=$DNS_SERVER_IP
 DHCP_ROUTER_IP=$HOST_GATEWAY_IP
@@ -96,7 +101,7 @@ DHCP_END_IP=$ENDING_IP
 export GOVC_INSECURE=true
 export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
 COREOS_OVA_URL="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova"
-COREOS_OVA_NAME="fedora-coreos-39.20240104.3.0-vmware.x86_64"
+COREOS_OVA_NAME="fedora-coreos-39.20240104.3.0-vmware.x86_64" 
 PIHOLE_DOCKER_IMAGE=pihole/pihole:2024.01.0
 export PORTAINER_DOCKER_IMAGE=portainer/portainer-ce:2.19.4
 export OPENLDAP_DOCKER_IMAGE=osixia/openldap:1.5.0
@@ -116,6 +121,7 @@ LDAP_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 LDAP_CONFIG_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 export PORTAINER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 DJANGO_SUPERUSER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+#change these away from hardcoded creds once we know this works
 AWX_POSTGRES_PASSWORD="rzabMdUaDNuyQGmnYUQN" #$(openssl rand -base64 32)
 BROADCAST_WEBSOCKET_SECRET="QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y=" #$(openssl rand -base64 32)
 AWX_SECRET_KEY="JDqxKuQemHEajsZVZFQs" #$(openssl rand -base64 32)
@@ -161,7 +167,7 @@ export OPENLDAP_BACKEND_URL=http://$OPENLDAP_BACKEND_FQDN:$OPENLDAP_PORT
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FRONTEND_FQDN/service/rest/v1
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_DATA_DIR=$(pwd)/bootstrap/traefik/data
-#change to container for passowrds
+#change to containers for these passwords like in the powershell script at somepoint
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g)
 export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2 | sed -e s/\\$/\\$\\$/g)
 export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD) # | sed -e s/\\$/\\$\\$/g)
@@ -250,6 +256,7 @@ docker exec pihole sh -c "$dockerSHCommand"
 #docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
 #echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 #curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
+#these lines here that are changing the DNS cause the rest of the script to fail if they PIhole doesn't properly set up the DNS. May want to add a check that if the DNS doesn't resolve, then we abort oppose to hard charging on and switching to a broken DNS address
 echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
