@@ -22,6 +22,8 @@ fi
 
 #These are some extra stuff to disable resolved, they shouldn't be needed but are still here just in case.
 #echo -e "[Resolve]\nDNS=1.1.1.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
+
+#this removes the symlink between resolved and the normal resolv.conf
 #sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
 #installing the repo and required packages
