@@ -123,11 +123,14 @@ PIHOLE_SHORTNAME=pihole
 NEXUS_SHORTNAME=nexus
 TRAEFIK_SHORTNAME=traefik
 DOCKER_SHORTNAME=docker
+PORTAINER_SHORTNAME=portainer
+OPENLDAP_SHORTNAME=ldap
 UPSTREAM_DNS_IPS="1.1.1.1;1.0.0.1"
 export PORTAINER_PORT=9000
 PIHOLE_PORT=8001
 NEXUS_PORT=8081
 DOCKER_REGISTRY_PORT=8002
+export OPENLDAP_PORT=8003
 VCENTER_LIBRARY_NAME=library
 
 ### --- AUTO-GENERATED VARIABLES --- ###
@@ -138,6 +141,8 @@ export TRAEFIK_FQDN=$TRAEFIK_SHORTNAME.$DOMAIN_NAME
 export PIHOLE_BACKEND_FQDN=$PIHOLE_SHORTNAME-backend01.$DOMAIN_NAME
 export NEXUS_BACKEND_FQDN=$NEXUS_SHORTNAME-backend01.$DOMAIN_NAME
 export DOCKER_REGISTRY_BACKEND_FQDN=$DOCKER_SHORTNAME-backend01.$DOMAIN_NAME
+export PORTAINER_BACKEND_FQDN=$PORTAINER_SHORTNAME-backend01.$DOMAIN_NAME
+export OPENLDAP_BACKEND_FQDN=$OPENLDAP_SHORTNAME-backend01.$DOMAIN_NAME
 TRAEFIK_IP=$BOOTSTRAP_IP
 PIHOLE_IP=$BOOTSTRAP_IP
 NEXUS_IP=$BOOTSTRAP_IP
@@ -146,6 +151,8 @@ export PIHOLE_BACKEND_URL=http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT
 export NEXUS_BACKEND_URL=http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT
 export DOCKER_REGISTRY_BACKEND_URL=http://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT
 export PORTAINER_LOCALHOST_URL=http://localhost:$PORTAINER_PORT
+export PORTAINER_BACKEND_URL=http://$PORTAINER_BACKEND_FQDN:$PORTAINER_PORT
+export OPENLDAP_BACKEND_URL=http://$OPENLDAP_BACKEND_FQDN:$OPENLDAP_PORT
 #PIHOLE_LOCALHOST_BASE_URL=http://localhost:$PIHOLE_PORT
 #PIHOLE_LOGIN_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/login.php
 #PIHOLE_INDEX_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/index.php
@@ -496,13 +503,24 @@ echo "Waiting for VM to be ready..."
 VM_IP=$(govc vm.ip -u $GOVC_CONNECTION_STRING $GOVC_VM )
 echo "YOUR PORTAINER PASSWORD IS: $PORTAINER_PASSWORD"
 echo "$GOVC_VM's IP: $VM_IP"
+
+# Define the custom DNS list
+CUSTOM_DNS_LIST="
+$VM_IP $PORTAINER_BACKEND_FQDN
+$VM_IP $OPENLDAP_BACKEND_FQDN
+"
+# Append the custom DNS list to the pihole custom list file and restart the DNS service
+echo "Append the custom DNS list to the pihole custom list file and restart the DNS service"
+dockerSHCommand="echo \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
+docker exec pihole sh -c "$dockerSHCommand"
+
 echo "`date +"%Y-%m-%d %T"` -- deployment complete!"
 echo "Automatically connecting to the VM using ssh"
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i ~/.ssh/id_rsa admin@$VM_IP
 
 # prompt user to press y to delete the VM
 read -p "Press y to delete the VM: " -n 1 -r
-if [[  $REPLY =~ ^[Yy]$ ]]
+if [[ $REPLY =~ ^[Yy]$ ]]
 then
 # delete the VM
   govc vm.power -u $GOVC_CONNECTION_STRING -off $GOVC_VM
