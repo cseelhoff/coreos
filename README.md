@@ -5,7 +5,11 @@ acme.json should be in the ~/coreos/backup. Start.sh will create it there is if 
 
 .env key:
 
-export TIMEZONE=America/Chicago
+If it exists, .env should be in \ dirctory. The start.sh will create it in the proper folder if does not exist.  Below is an example of what should be in the file:
+
+export CF_DNS_API_TOKEN='<API_token>'
+export GOVC_PASSWORD='<VCenter password>'
+export COREOS_ADMIN_PASSWORD='<CoreOS password>'
 export ORGANIZATION_NAME='177th Cyber Protection Team'
 export DOMAIN_NAME='177cpt.com'
 export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
