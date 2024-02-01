@@ -102,6 +102,7 @@ export GOVC_INSECURE=true
 export GOVC_TLS_KNOWN_HOSTS=~/.govc_known_hosts
 COREOS_OVA_URL="https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/39.20240104.3.0/x86_64/fedora-coreos-39.20240104.3.0-vmware.x86_64.ova"
 COREOS_OVA_NAME="fedora-coreos-39.20240104.3.0-vmware.x86_64"
+#The script is erroring out and not able to find the image when it is running where.   
 PIHOLE_DOCKER_IMAGE=pihole/pihole:2024.01.0
 export PORTAINER_DOCKER_IMAGE=portainer/portainer-ce:2.19.4
 export OPENLDAP_DOCKER_IMAGE=osixia/openldap:1.5.0
@@ -167,7 +168,7 @@ export OPENLDAP_BACKEND_URL=http://$OPENLDAP_BACKEND_FQDN:$OPENLDAP_PORT
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FRONTEND_FQDN/service/rest/v1
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_DATA_DIR=$(pwd)/bootstrap/traefik/data
-#change to container for passowrds
+#change to containers for these passwords like in the powershell script at somepoint
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g)
 export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2 | sed -e s/\\$/\\$\\$/g)
 export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD) # | sed -e s/\\$/\\$\\$/g)
@@ -256,6 +257,7 @@ docker exec pihole sh -c "$dockerSHCommand"
 #docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
 #echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 #curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
+#these lines here that are changing the DNS cause the rest of the script to fail if they PIhole doesn't properly set up the DNS. May want to add a check that if the DNS doesn't resolve, then we abort oppose to hard charging on and switching to a broken DNS address
 echo "Setting DNS to use 127.0.0.1 (Pi-hole) and setting search domain to $DOMAIN_NAME"
 echo -e "nameserver 127.0.0.1\nsearch $DOMAIN_NAME" | sudo tee /etc/resolv.conf > /dev/null
 echo -e "[Resolve]\nDNS=127.0.0.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
