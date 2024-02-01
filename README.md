@@ -3,6 +3,19 @@ If it exists, .env should be in \ dirctory. The start.sh will create it in the p
 
 acme.json should be in the ~/coreos/backup. Start.sh will create it there is if does not exist. #We need to add a check to see if it is in the /coreos and move it if it is
 
+.env key:
+
+export TIMEZONE=America/Chicago
+export ORGANIZATION_NAME='177th Cyber Protection Team'
+export DOMAIN_NAME='177cpt.com'
+export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
+export GOVC_URL="vsphere2.us.177cpt.com" #this is the URL for the image address 
+export GOVC_USERNAME="Administrator@VSPHERE.LOCAL" #login for the vsphere
+export GOVC_HOST="10.0.1.31" #this is the IP address of the ESXI host that the infraVM is on 
+export GOVC_DATASTORE="esxi4_datastore" #datastore that VM is stored on
+export GOVC_VM="infravm" #infravm's name
+export GOVC_NETWORK="Internal Management" #network that VM put on
+GOVC_IP="10.0.1.41" # this is the vcenter ip address
 
 #extra Seelhoff notes:
 butane --pretty --strict coreos.bu --output coreos.ign
