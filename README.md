@@ -1,25 +1,25 @@
-For the linux machines:
+##For the linux machines:
 
 acme.json should be in the ~/coreos/backup. Start.sh will create it there is if does not exist. #We need to add a check to see if it is in the /coreos and move it if it is
 
 If it exists, .env should be in \ dirctory. The start.sh will create it in the proper folder if does not exist.  Below is an example of what should be in the file:
+```
+export CF_DNS_API_TOKEN='<API_token>' 
+export GOVC_PASSWORD='<VCenter password>'
+export COREOS_ADMIN_PASSWORD='<CoreOS password>'
+export ORGANIZATION_NAME='177th Cyber Protection Team'
+export DOMAIN_NAME='177cpt.com'
+export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
+export GOVC_URL="vsphere2.us.177cpt.com" #this is the URL for the image address
+export GOVC_USERNAME="Administrator@VSPHERE.LOCAL" #login for the vsphere
+export GOVC_HOST="10.0.1.31" #this is the IP address of the ESXI host that the infraVM is on
+export GOVC_DATASTORE="esxi4_datastore" #datastore that VM is stored on
+export GOVC_VM="infravm" #infravm's name
+export GOVC_NETWORK="Internal Management" #network that VM put on 
+GOVC_IP="10.0.1.41" # this is the vcenter ip address
+```
 
-export CF_DNS_API_TOKEN='<API_token>' /n 
-export GOVC_PASSWORD='<VCenter password>' /n
-export COREOS_ADMIN_PASSWORD='<CoreOS password>' /n
-export ORGANIZATION_NAME='177th Cyber Protection Team' /n
-export DOMAIN_NAME='177cpt.com' /n
-export CLOUDFLARE_EMAIL=cseelhoff@gmail.com /n
-export GOVC_URL="vsphere2.us.177cpt.com" #this is the URL for the image address /n
-export GOVC_USERNAME="Administrator@VSPHERE.LOCAL" #login for the vsphere /n
-export GOVC_HOST="10.0.1.31" #this is the IP address of the ESXI host that the infraVM is on /n
-export GOVC_DATASTORE="esxi4_datastore" #datastore that VM is stored on /n
-export GOVC_VM="infravm" #infravm's name /n
-export GOVC_NETWORK="Internal Management" #network that VM put on /n
-GOVC_IP="10.0.1.41" # this is the vcenter ip address /n
-
-
-``extra Seelhoff notes:``
+##extra Seelhoff notes:
 butane --pretty --strict coreos.bu --output coreos.ign
 .\kvpctl.exe coreos add-ign .\coreos.ign
 .\kvpctl.exe coreos get
