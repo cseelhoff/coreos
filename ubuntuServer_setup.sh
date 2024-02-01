@@ -11,8 +11,6 @@
 #    exit 1
 #fi
 
-sudo apt-get update && sudo apt-get upgrade -y
-
 if dpkg -l | grep -q "openssh-server"; then
     echo "OpenSSH Server is installed."
 else
