@@ -114,7 +114,7 @@ TRAEFIK_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 NEXUS_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 LDAP_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 LDAP_CONFIG_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
-PORTAINER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+export PORTAINER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 DJANGO_SUPERUSER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 AWX_POSTGRES_PASSWORD="rzabMdUaDNuyQGmnYUQN" #$(openssl rand -base64 32)
 BROADCAST_WEBSOCKET_SECRET="QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y=" #$(openssl rand -base64 32)
@@ -124,7 +124,7 @@ NEXUS_SHORTNAME=nexus
 TRAEFIK_SHORTNAME=traefik
 DOCKER_SHORTNAME=docker
 UPSTREAM_DNS_IPS="1.1.1.1;1.0.0.1"
-PORTAINER_PORT=9000
+export PORTAINER_PORT=9000
 PIHOLE_PORT=8001
 NEXUS_PORT=8081
 DOCKER_REGISTRY_PORT=8002
@@ -507,3 +507,4 @@ then
   govc vm.power -u $GOVC_CONNECTION_STRING -off $GOVC_VM
   govc vm.destroy -u $GOVC_CONNECTION_STRING $GOVC_VM
 fi
+echo "\nDone"
