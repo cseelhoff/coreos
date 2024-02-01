@@ -157,7 +157,7 @@ export TRAEFIK_DATA_DIR=$(pwd)/bootstrap/traefik/data
 #change to container for passowrds
 export TRAEFIK_AUTH=$(htpasswd -nb "admin" "$TRAEFIK_PASSWORD" | sed -e s/\\$/\\$\\$/g)
 export PORTAINER_BCRYPT=$(htpasswd -nbB admin $PORTAINER_PASSWORD | cut -d ":" -f 2 | sed -e s/\\$/\\$\\$/g)
-export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD | sed -e s/\\$/\\$\\$/g)
+export COREOS_ADMIN_PASSWORD_HASH=$(mkpasswd --method=yescrypt $COREOS_ADMIN_PASSWORD) # | sed -e s/\\$/\\$\\$/g)
 echo "Creating ssh keypair if it does not exist..."
 [ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N '' >/dev/null
 export COREOS_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
