@@ -30,6 +30,24 @@ http:
         - https-redirectscheme
       tls: {}
       service: docker_registry
+    portainer:
+      entryPoints:
+        - "https"
+      rule: "Host(`${PORTAINER_FRONTEND_FQDN}`)"
+      middlewares:
+        - default-headers
+        - https-redirectscheme
+      tls: {}
+      service: portainer
+    openldap:
+      entryPoints:
+        - "https"
+      rule: "Host(`${OPENLDAP_FRONTEND_FQDN}`)"
+      middlewares:
+        - default-headers
+        - https-redirectscheme
+      tls: {}
+      service: openldap
 #endregion
 #region services
   services:
@@ -47,6 +65,16 @@ http:
       loadBalancer:
         servers:
           - url: "${DOCKER_REGISTRY_BACKEND_URL}"
+        passHostHeader: true
+    portainer:
+      loadBalancer:
+        servers:
+          - url: "${PORTAINER_BACKEND_URL}"
+        passHostHeader: true
+    openldap:
+      loadBalancer:
+        servers:
+          - url: "${OPENLDAP_BACKEND_URL}"
         passHostHeader: true
 #endregion
   middlewares:
