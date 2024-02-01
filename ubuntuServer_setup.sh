@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#wget https://raw.githubusercontent.com/cseelhoff/coreos/main/ubuntuServer_setup.sh
+#chmod u+x ubuntuServer_setup.sh
+#bash ubuntuServer_setup.sh
+
 #this scripts is to be run on a ubuntu server before anything else has been start.sh
 
 if [ "$(id -u)" != "0" ]; then
