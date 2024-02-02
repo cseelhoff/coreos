@@ -1,6 +1,6 @@
 ##For the linux machines:
 
-acme.json should be in the ~/coreos/backup. Start.sh will create it there is if does not exist. #We need to add a check to see if it is in the /coreos and move it if it is
+acme.json, which has the cloudflare keys, should be in the ~/coreos/backup. Start.sh will go from there as long as it exists. 
 
 If it exists, .env should be in \ dirctory. The start.sh will create it in the proper folder if does not exist.  Below is an example of what should be in the file:
 ```
@@ -10,7 +10,7 @@ export COREOS_ADMIN_PASSWORD='<CoreOS password>'
 export ORGANIZATION_NAME='177th Cyber Protection Team'
 export DOMAIN_NAME='177cpt.com'
 export CLOUDFLARE_EMAIL=cseelhoff@gmail.com
-export GOVC_URL="vsphere2.us.177cpt.com" #this is the URL for the image address
+export GOVC_URL="vsphere2.us.177cpt.com" #this is the URL for the vsphere
 export GOVC_USERNAME="Administrator@VSPHERE.LOCAL" #login for the vsphere
 export GOVC_HOST="10.0.1.31" #this is the IP address of the ESXI host that the infraVM is on
 export GOVC_DATASTORE="esxi4_datastore" #datastore that VM is stored on
