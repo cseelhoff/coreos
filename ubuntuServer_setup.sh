@@ -19,10 +19,17 @@ else
 fi
 
 #These are some extra stuff to setup resolved.conf so that it actually does the things it needs to do
-echo -e "[Resolve]\nDNS=1.1.1.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
+#echo -e "[Resolve]\nDNS=1.1.1.1\nDNSStubListener=no\n" | sudo tee /etc/systemd/resolved.conf > /dev/null
 
 #this removes the symlink between resolved and the normal resolv.conf
 #sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+# stops the default the DNS service so that the PIhole doesn't run into issues later on
+# sudo systemctl disable systemd-resolved && sudo systemctl stop systemd-resolved
+
+# a better way to do the above commented out solution to the resolved issue
+sudo sed -r -i.orig 's/#?DNSStubListener=yes/DNSStubListener=no/g' /etc/systemd/resolved.conf
+sudo sh -c 'rm /etc/resolv.conf && ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf'
+sudo systemctl restart systemd-resolved
 
 #installing the repo and required packages
 sudo apt install -y apache2-utils whois jq curl git docker.io && \
@@ -33,5 +40,4 @@ sudo chmod 755 /usr/local/bin/docker-compose
 git clone https://github.com/cseelhoff/coreos && cd coreos
 
 mkdir backup
-#stops the default the DNS service so that the PIhole doesn't run into issues later on
-sudo systemctl disable systemd-resolved && sudo systemctl stop systemd-resolved
+
