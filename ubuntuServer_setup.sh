@@ -32,6 +32,6 @@ sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.2/docker
 sudo chmod 755 /usr/local/bin/docker-compose
 git clone https://github.com/cseelhoff/coreos && cd coreos
 
-
+mkdir backup
 #stops the default the DNS service so that the PIhole doesn't run into issues later on
 sudo systemctl disable systemd-resolved && sudo systemctl stop systemd-resolved
