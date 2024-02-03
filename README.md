@@ -5,7 +5,7 @@ Make the script more non-destructive
 
 add acme.json check
 
-add stuff nexus container on the infraVM
+add nexus container stuff on the infraVM
 
 add a -v option to docker run for pihole so that we aren't just grepping timezone and pulling it as a variable 
 
