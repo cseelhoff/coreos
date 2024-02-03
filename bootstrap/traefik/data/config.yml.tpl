@@ -30,24 +30,6 @@ http:
         - https-redirectscheme
       tls: {}
       service: docker_registry
-    vm_nexus:
-      entryPoints:
-        - "https"
-      rule: "Host(`${VM_NEXUS_FRONTEND_FQDN}`)"
-      middlewares:
-        - default-headers
-        - https-redirectscheme
-      tls: {}
-      service: vm_nexus
-    vm_docker_registry:
-      entryPoints:
-        - "https"
-      rule: "Host(`${VM_DOCKER_REGISTRY_FRONTEND_FQDN}`)"
-      middlewares:
-        - default-headers
-        - https-redirectscheme
-      tls: {}
-      service: vm_docker_registry
     portainer:
       entryPoints:
         - "https"
@@ -94,16 +76,6 @@ http:
         servers:
           - url: "${OPENLDAP_BACKEND_URL}"
         passHostHeader: true
-    vm_nexus:
-      loadBalancer:
-        servers:
-          - url: "${VM_NEXUS_BACKEND_URL}"
-        passHostHeader: true
-    vm_docker_registry:
-      loadBalancer:
-        servers:
-          - url: "${VM_DOCKER_REGISTRY_BACKEND_URL}"
-        passHostHeader: true        
 #endregion
   middlewares:
     addprefix-pihole:
