@@ -25,7 +25,7 @@ export GOVC_NETWORK="Internal Management" #network that VM put on
 GOVC_IP="10.0.1.41" # this is the vcenter ip address
 ```
 
-# extra Seelhoff notes:
+### extra Seelhoff notes:
 ```
 butane --pretty --strict coreos.bu --output coreos.ign
 .\kvpctl.exe coreos add-ign .\coreos.ign
