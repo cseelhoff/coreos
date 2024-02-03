@@ -2,7 +2,7 @@
 
 acme.json, which has the cloudflare keys, should be in the ~/coreos/backup. Start.sh will go from there as long as it exists. 
 
-If it exists, .env should be in \ dirctory. The start.sh will create it in the proper folder if does not exist.  Below is an example of what should be in the file:
+start.sh will create .env in the directory the script is run in if .env does not exist in a detectable location. Below is an example of what should be in the file:
 ```
 export CF_DNS_API_TOKEN='<API_token>' 
 export GOVC_PASSWORD='<VCenter password>'
