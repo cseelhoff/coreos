@@ -1,3 +1,9 @@
+##To-Do
+Change from using A records for all of the container on the pihole to using CNAME records
+Make the script more non-destructive
+add acme.json check
+add stuff nexus container on the infraVM 
+
 ##For the linux machines:
 
 acme.json, which has the cloudflare keys, should be in the ~/coreos/backup. Start.sh will go from there as long as it exists. 
