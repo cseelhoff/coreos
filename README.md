@@ -1,8 +1,10 @@
 ## To-Do
-Change from using A records for all of the container on the pihole to using CNAME records
+Change from using A records for all of the container on the pihole to using CNAME records /n
 Make the script more non-destructive
 add acme.json check
 add stuff nexus container on the infraVM 
+add a -v option to docker run for pihole so that we aren't just grepping timezone and pulling it as a variable 
+swtich dhcp to true in start.sh
 
 ## For the linux machines:
 
