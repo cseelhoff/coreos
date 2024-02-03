@@ -144,6 +144,8 @@ export PIHOLE_FRONTEND_FQDN=$PIHOLE_SHORTNAME.$DOMAIN_NAME
 export NEXUS_FRONTEND_FQDN=$NEXUS_SHORTNAME.$DOMAIN_NAME
 export DOCKER_REGISTRY_FRONTEND_FQDN=$DOCKER_SHORTNAME.$DOMAIN_NAME
 export TRAEFIK_FQDN=$TRAEFIK_SHORTNAME.$DOMAIN_NAME
+export PORTAINER_FRONTEND_FQDN=$PORTAINER_SHORTNAME.$DOMAIN_NAME
+export OPENLDAP_FRONTEND_FQDN=$OPENLDAP_SHORTNAME.$DOMAIN_NAME
 export PIHOLE_BACKEND_FQDN=$PIHOLE_SHORTNAME-backend01.$DOMAIN_NAME
 export NEXUS_BACKEND_FQDN=$NEXUS_SHORTNAME-backend01.$DOMAIN_NAME
 export DOCKER_REGISTRY_BACKEND_FQDN=$DOCKER_SHORTNAME-backend01.$DOMAIN_NAME
@@ -520,6 +522,20 @@ $VM_IP $OPENLDAP_BACKEND_FQDN
 echo "Append the custom DNS list to the pihole custom list file and restart the DNS service"
 dockerSHCommand="echo \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
 docker exec pihole sh -c "$dockerSHCommand"
+
+# display a simple https health check on pihole, traefik, nexus, portainer, and openldap, using their frontend URLs with red/green statuses
+echo "Checking health of pihole, traefik, nexus, portainer, and openldap"
+# create an array of the services to check using their frontend URLs
+services=("$PIHOLE_FRONTEND_FQDN" "$TRAEFIK_FQDN" "$NEXUS_FRONTEND_FQDN" "$PORTAINER_BACKEND_FQDN" "$OPENLDAP_BACKEND_FQDN")
+# loop through the array and check the health of each service
+for service in "${services[@]}"; do
+  # check the health of the service and display red text if unhealthy and green text if healthy
+  if curl -s -o /dev/null -w "%{http_code}" https://$service; then
+    echo -e "\e[32m$service is healthy\e[0m"
+  else
+    echo -e "\e[31m$service is unhealthy\e[0m"
+  fi
+done
 
 echo "`date +"%Y-%m-%d %T"` -- deployment complete!"
 echo "Automatically connecting to the VM using ssh"
