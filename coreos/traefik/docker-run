@@ -1,0 +1,16 @@
+docker run \
+--detach \
+-p 8000:8000 \
+-p 9443:9443 \
+--network traefik_default \
+--name portainer2 \
+--restart=always \
+--volume /var/run/docker.sock:/var/run/docker.sock \
+--volume portainer_data:/data \
+--label "traefik.enable=true" \
+--label "traefik.http.routers.portainer2.entrypoints=websecure" \
+--label "traefik.http.routers.portainer2.rule=Host(\`portainer2.177cpt.com\`)" \
+--label "traefik.http.services.portainer2.loadbalancer.server.port=9443" \
+--label "traefik.http.services.portainer2.loadbalancer.server.scheme=https" \
+--label "traefik.http.routers.portainer2.tls.domains[0].main=0.0.0.0" \
+portainer/portainer-ce:latest
