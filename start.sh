@@ -105,7 +105,7 @@ COREOS_OVA_NAME="fedora-coreos-39.20240104.3.0-vmware.x86_64"
 PIHOLE_DOCKER_IMAGE=pihole/pihole:2024.01.0
 export PORTAINER_DOCKER_IMAGE=portainer/portainer-ce:2.19.4
 export OPENLDAP_DOCKER_IMAGE=osixia/openldap:1.5.0
-NEXUS_DOCKER_IMAGE=sonatype/nexus3:3.64.0
+export NEXUS_DOCKER_IMAGE=sonatype/nexus3:3.64.0
 GITEA_DOCKER_IMAGE=gitea/gitea:1.21.4
 export TRAEFIK_DOCKER_IMAGE=traefik:v2.10.4
 export PHPLDAPADMIN_DOCKER_IMAGE=osixia/phpldapadmin:0.9.0
@@ -116,7 +116,8 @@ export AWX_GHCR_IMAGE=ansible/awx_devel:devel
 # replace symbols that would need to be web encoded
 PIHOLE_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 TRAEFIK_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
-NEXUS_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
+NEXUS_PASSWORD=$(openssl rand -base64 32 | tr '+' '0') #bootstrap
+VM_NEXUS_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 LDAP_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 LDAP_CONFIG_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 export PORTAINER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
@@ -126,47 +127,65 @@ AWX_POSTGRES_PASSWORD="rzabMdUaDNuyQGmnYUQN" #$(openssl rand -base64 32)
 BROADCAST_WEBSOCKET_SECRET="QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y=" #$(openssl rand -base64 32)
 AWX_SECRET_KEY="JDqxKuQemHEajsZVZFQs" #$(openssl rand -base64 32)
 PIHOLE_SHORTNAME=pihole
-NEXUS_SHORTNAME=nexus
+NEXUS_SHORTNAME=nexus-backup #bootstrap
+VM_NEXUS_SHORTNAME=nexus
 TRAEFIK_SHORTNAME=traefik
-DOCKER_SHORTNAME=docker
+DOCKER_SHORTNAME=docker-backup #bootstrap
+VM_DOCKER_SHORTNAME=docker
 PORTAINER_SHORTNAME=portainer
 OPENLDAP_SHORTNAME=ldap
+BOOTSTRAP_SHORTNAME=bootstrap
 UPSTREAM_DNS_IPS="1.1.1.1;1.0.0.1"
 export PORTAINER_PORT=9000
 PIHOLE_PORT=8001
-NEXUS_PORT=8081
-DOCKER_REGISTRY_PORT=8002
+export NEXUS_PORT=8081 #bootstrap
+export VM_NEXUS_PORT=8081
+DOCKER_REGISTRY_PORT=8002 #bootstrap
+export VM_DOCKER_REGISTRY_PORT=8002
+
 export OPENLDAP_PORT=8003
 VCENTER_LIBRARY_NAME=library
 
 ### --- AUTO-GENERATED VARIABLES --- ###
+export BOOTSTRAP_FQDN=$BOOTSTRAP_SHORTNAME.$DOMAIN_NAME
 export PIHOLE_FRONTEND_FQDN=$PIHOLE_SHORTNAME.$DOMAIN_NAME
 export NEXUS_FRONTEND_FQDN=$NEXUS_SHORTNAME.$DOMAIN_NAME
+export VM_NEXUS_FRONTEND_FQDN=$VM_NEXUS_SHORTNAME.$DOMAIN_NAME
 export DOCKER_REGISTRY_FRONTEND_FQDN=$DOCKER_SHORTNAME.$DOMAIN_NAME
+export VM_DOCKER_REGISTRY_FRONTEND_FQDN=$VM_DOCKER_SHORTNAME.$DOMAIN_NAME
 export TRAEFIK_FQDN=$TRAEFIK_SHORTNAME.$DOMAIN_NAME
 export PORTAINER_FRONTEND_FQDN=$PORTAINER_SHORTNAME.$DOMAIN_NAME
 export OPENLDAP_FRONTEND_FQDN=$OPENLDAP_SHORTNAME.$DOMAIN_NAME
 export PIHOLE_BACKEND_FQDN=$PIHOLE_SHORTNAME-backend01.$DOMAIN_NAME
 export NEXUS_BACKEND_FQDN=$NEXUS_SHORTNAME-backend01.$DOMAIN_NAME
+export VM_NEXUS_BACKEND_FQDN=$VM_NEXUS_SHORTNAME-backend01.$DOMAIN_NAME
 export DOCKER_REGISTRY_BACKEND_FQDN=$DOCKER_SHORTNAME-backend01.$DOMAIN_NAME
+export VM_DOCKER_REGISTRY_BACKEND_FQDN=$VM_DOCKER_SHORTNAME-backend01.$DOMAIN_NAME
 export PORTAINER_BACKEND_FQDN=$PORTAINER_SHORTNAME-backend01.$DOMAIN_NAME
 export OPENLDAP_BACKEND_FQDN=$OPENLDAP_SHORTNAME-backend01.$DOMAIN_NAME
+#these are just used to make the DNS record later on a little more clear.
 TRAEFIK_IP=$BOOTSTRAP_IP
 PIHOLE_IP=$BOOTSTRAP_IP
 NEXUS_IP=$BOOTSTRAP_IP
+#this next line needs to be put way later in the script, when the nexus is actually stood up
+#VM_NEXUS_IP=$VM_IP #this is only in here because I was copying the config. It's not actually required 
 DOCKER_REGISTRY_IP=$BOOTSTRAP_IP
 export PIHOLE_BACKEND_URL=http://$PIHOLE_BACKEND_FQDN:$PIHOLE_PORT
 export NEXUS_BACKEND_URL=http://$NEXUS_BACKEND_FQDN:$NEXUS_PORT
+export VM_NEXUS_BACKEND_URL=http://$VM_NEXUS_BACKEND_FQDN_NEXUS_BACKEND_FQDN:$VM_NEXUS_PORT
 export DOCKER_REGISTRY_BACKEND_URL=http://$DOCKER_REGISTRY_BACKEND_FQDN:$DOCKER_REGISTRY_PORT
+export VM_DOCKER_REGISTRY_BACKEND_URL=http://$VM_DOCKER_REGISTRY_BACKEND_FQDN:$VM_DOCKER_REGISTRY_PORT
 export PORTAINER_LOCALHOST_URL=http://localhost:$PORTAINER_PORT
 export PORTAINER_BACKEND_URL=http://$PORTAINER_BACKEND_FQDN:$PORTAINER_PORT
 export OPENLDAP_BACKEND_URL=http://$OPENLDAP_BACKEND_FQDN:$OPENLDAP_PORT
+export BOOTSTRAP_URL=http://$BOOTSTRAP_FQDN
 #PIHOLE_LOCALHOST_BASE_URL=http://localhost:$PIHOLE_PORT
 #PIHOLE_LOGIN_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/login.php
 #PIHOLE_INDEX_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/index.php
 #PIHOLE_SETTINGS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/settings.php?tab=dns
 #PIHOLE_CUSTOM_DNS_URL=$PIHOLE_LOCALHOST_BASE_URL/admin/scripts/pi-hole/php/customdns.php
 NEXUS_SERIVICE_REST_URL=https://$NEXUS_FRONTEND_FQDN/service/rest/v1
+VM_NEXUS_SERIVICE_REST_URL=https://$VM_NEXUS_FRONTEND_FQDN/service/rest/v1
 GOVC_CONNECTION_STRING=$GOVC_USERNAME:$GOVC_PASSWORD@$GOVC_URL
 export TRAEFIK_DATA_DIR=$(pwd)/bootstrap/traefik/data
 #change to containers for these passwords like in the powershell script at somepoint
@@ -187,6 +206,7 @@ envsubst < coreos/awx/etc/tower/conf.d/database.py.tpl > coreos/awx/etc/tower/co
 envsubst < coreos/awx/etc/tower/conf.d/websocket_secret.py.tpl > coreos/awx/etc/tower/conf.d/websocket_secret.py
 envsubst < coreos/guacamole/docker-compose.yml.tpl > coreos/guacamole/docker-compose.yml
 envsubst < coreos/openldap/docker-compose.yml.tpl > coreos/openldap/docker-compose.yml
+envsubst < coreos/nexus/docker-compose.yml.tpl > coreos/nexus/docker-compose.yml
 envsubst < coreos/coreos.bu.tpl > coreos/coreos.bu
 echo $AWX_SECRET_KEY > coreos/awx/etc/tower/SECRET_KEY
 butane --files-dir coreos --pretty --strict coreos/coreos.bu --output coreos/coreos.ign
@@ -238,24 +258,34 @@ echo "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig before changing l
 dig +short $NEXUS_FRONTEND_FQDN
 
 # Define the custom DNS list
-CUSTOM_DNS_LIST="
-$PIHOLE_IP $PIHOLE_BACKEND_FQDN
-$NEXUS_IP $NEXUS_BACKEND_FQDN
-$DOCKER_REGISTRY_IP $DOCKER_REGISTRY_BACKEND_FQDN
-$TRAEFIK_IP $TRAEFIK_FQDN
-$TRAEFIK_IP $PIHOLE_FRONTEND_FQDN
-$TRAEFIK_IP $NEXUS_FRONTEND_FQDN
-$TRAEFIK_IP $DOCKER_REGISTRY_FRONTEND_FQDN
-$GOVC_IP vsphere2.177cpt.com
+# make this a CNAME record instead of an A record for everything but bootstrap  
+# A record:
+CUSTOM_DNS_A_RECORD="
 $GOVC_IP $GOVC_URL
+$BOOTSTRAP_IP $BOOTSTRAP_URL
+"
+#CNAME Record:
+CUSTOM_CNAME_RECORD="
+cname=$BOOTSTRAP_URL,$PIHOLE_BACKEND_FQDN
+cname=$BOOTSTRAP_URL,$NEXUS_BACKEND_FQDN
+cname=$BOOTSTRAP_URL,$DOCKER_REGISTRY_BACKEND_FQDN
+cname=$BOOTSTRAP_URL,$TRAEFIK_FQDN
+cname=$BOOTSTRAP_URL,$PIHOLE_FRONTEND_FQDN
+cname=$BOOTSTRAP_URL,$NEXUS_FRONTEND_FQDN
+cname=$BOOTSTRAP_URL,$DOCKER_REGISTRY_FRONTEND_FQDN
 "
 # Append the custom DNS list to the pihole custom list file and restart the DNS service
-echo "Append the custom DNS list to the pihole custom list file and restart the DNS service"
-
-dockerSHCommand="echo \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
+echo "Appending the custom A record to the pihole custom list file, the CNAME record to 02-custom.conf,  and restarting the DNS service"
+# if there are any duplicate DNS will fail to start on Pi-hole so I'm wiping the 02-custom.conf since running the script again without destroying the container will cause the file to be appended to again, bricking the system
+dockerSHCommand="
+echo \"$CUSTOM_DNS_A_RECORD\" >> /etc/pihole/custom.list &&
+touch /etc/dnsmasq.d/02-custom.conf  &&
+echo \"$CUSTOM_CNAME_RECORD\" > /etc/dnsmasq.d/02-custom.conf && 
+pihole restartdns
+"
 docker exec pihole sh -c "$dockerSHCommand"
 
-#docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
+#docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_A_RECORD\" >> /etc/pihole/custom.list && pihole restartdns"
 #echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 #curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
 #these lines here that are changing the DNS cause the rest of the script to fail if they PIhole doesn't properly set up the DNS. May want to add a check that if the DNS doesn't resolve, then we abort oppose to hard charging on and switching to a broken DNS address
@@ -514,19 +544,26 @@ echo "YOUR PORTAINER PASSWORD IS: $PORTAINER_PASSWORD"
 echo "$GOVC_VM's IP: $VM_IP"
 
 # Define the custom DNS list
-CUSTOM_DNS_LIST="
-$VM_IP $PORTAINER_BACKEND_FQDN
-$VM_IP $OPENLDAP_BACKEND_FQDN
+#make this a CNAMe record instead of an A record
+# A record:
+CUSTOM_DNS_A_RECORD="
+$VM_IP $VM_URL"
+#CNAME Record:
+CUSTOM_CNAME_RECORD="
+cname=$VM_URL,$PORTAINER_BACKEND_FQDN
+cname=$VM_URL,$OPENLDAP_BACKEND_FQDN
+cname=$VM_URL,$VM_NEXUS_BACKEND_FQDN
+cname=$VM_URL,$VM_NEXUS_FRONTEND_FQDN
 "
 # Append the custom DNS list to the pihole custom list file and restart the DNS service
-echo "Append the custom DNS list to the pihole custom list file and restart the DNS service"
-dockerSHCommand="echo \"$CUSTOM_DNS_LIST\" >> /etc/pihole/custom.list && pihole restartdns"
+echo "Appending the custom A record to the pihole custom list file, the CNAME record to 02-custom.conf,  and restarting the DNS service" 
+dockerSHCommand="echo \"$CUSTOM_DNS_A_RECORD\" >> /etc/pihole/custom.list && touch /etc/dnsmasq.d/02-custom.conf  && echo \"$CUSTOM_CNAME_RECORD\" >> /etc/dnsmasq.d/02-custom.conf && pihole restartdns"
 docker exec pihole sh -c "$dockerSHCommand"
 
 # display a simple https health check on pihole, traefik, nexus, portainer, and openldap, using their frontend URLs with red/green statuses
 echo "Checking health of pihole, traefik, nexus, portainer, and openldap"
 # create an array of the services to check using their frontend URLs
-services=("$PIHOLE_FRONTEND_FQDN" "$TRAEFIK_FQDN" "$NEXUS_FRONTEND_FQDN" "$PORTAINER_BACKEND_FQDN" "$OPENLDAP_BACKEND_FQDN")
+services=("$PIHOLE_FRONTEND_FQDN" "$TRAEFIK_FQDN" "$NEXUS_FRONTEND_FQDN" "$VM_NEXUS_FRONTEND_FQDN" "$PORTAINER_BACKEND_FQDN" "$OPENLDAP_BACKEND_FQDN" "$BOOTSTRAP_FQDN")
 # loop through the array and check the health of each service
 for service in "${services[@]}"; do
   # check the health of the service and display red text if unhealthy and green text if healthy
