@@ -238,7 +238,7 @@ docker run -d \
   -e DNSMASQ_LISTENING=all \
   -e TZ=$TIMEZONE \
   -e PIHOLE_DNS_=$UPSTREAM_DNS_IPS \
-  -e DHCP_ACTIVE=false \
+  -e DHCP_ACTIVE=true \
   -e DHCP_START=$DHCP_START_IP \
   -e DHCP_END=$DHCP_END_IP \
   -e DHCP_ROUTER=$DHCP_ROUTER_IP \
