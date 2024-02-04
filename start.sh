@@ -133,6 +133,7 @@ PORTAINER_SHORTNAME=portainer
 OPENLDAP_SHORTNAME=ldap
 BOOTSTRAP_SHORTNAME=bootstrap
 UPSTREAM_DNS_IPS="1.1.1.1;1.0.0.1"
+VM_SHORTNAME="infra"
 export PORTAINER_PORT=9000
 PIHOLE_PORT=8001
 export NEXUS_PORT=8081 #bootstrap
@@ -160,6 +161,7 @@ export DOCKER_REGISTRY_BACKEND_FQDN=$DOCKER_SHORTNAME-backend01.$DOMAIN_NAME
 export VM_DOCKER_REGISTRY_BACKEND_FQDN=$VM_DOCKER_SHORTNAME-backend01.$DOMAIN_NAME
 export PORTAINER_BACKEND_FQDN=$PORTAINER_SHORTNAME-backend01.$DOMAIN_NAME
 export OPENLDAP_BACKEND_FQDN=$OPENLDAP_SHORTNAME-backend01.$DOMAIN_NAME
+export VM_FQDN=$VM_SHORTNAME.$DOMAIN_NAME
 #these are just used to make the DNS record later on a little more clear.
 TRAEFIK_IP=$BOOTSTRAP_IP
 PIHOLE_IP=$BOOTSTRAP_IP
@@ -254,34 +256,31 @@ docker run -d \
 echo "Checking DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings"
 dig +short $NEXUS_FRONTEND_FQDN
 
-# Define the custom DNS list
-# make this a CNAME record instead of an A record for everything but bootstrap  
-# A record:
-CUSTOM_DNS_A_RECORD="
-$GOVC_IP $GOVC_URL
-$BOOTSTRAP_IP $BOOTSTRAP_URL
-"
-#CNAME Record:
-CUSTOM_CNAME_RECORD="
-cname=$BOOTSTRAP_URL,$PIHOLE_BACKEND_FQDN
-cname=$BOOTSTRAP_URL,$NEXUS_BACKEND_FQDN
-cname=$BOOTSTRAP_URL,$DOCKER_REGISTRY_BACKEND_FQDN
-cname=$BOOTSTRAP_URL,$TRAEFIK_FQDN
-cname=$BOOTSTRAP_URL,$PIHOLE_FRONTEND_FQDN
-cname=$BOOTSTRAP_URL,$NEXUS_FRONTEND_FQDN
-cname=$BOOTSTRAP_URL,$DOCKER_REGISTRY_FRONTEND_FQDN
-"
-# Append the custom DNS list to the pihole custom list file and restart the DNS service
-echo "Appending the custom A record to the pihole custom list file, the CNAME record to 02-custom.conf,  and restarting the DNS service"
-# if there are any duplicate DNS will fail to start on Pi-hole so I'm wiping the 02-custom.conf since running the script again without destroying the container will cause the file to be appended to again, bricking the system
-dockerSHCommand="
-echo \"$CUSTOM_DNS_A_RECORD\" >> /etc/pihole/custom.list &&
-touch /etc/dnsmasq.d/02-custom.conf  &&
-echo \"$CUSTOM_CNAME_RECORD\" > /etc/dnsmasq.d/02-custom.conf && 
-pihole restartdns
-"
-docker exec pihole sh -c "$dockerSHCommand"
-
+customdnslist() {
+  # Define the custom DNS list
+  # make this a CNAME record instead of an A record for everything but bootstrap  
+  # A record:
+  CUSTOM_DNS_A_RECORD="$GOVC_IP $GOVC_URL
+  $BOOTSTRAP_IP $BOOTSTRAP_FQDN"
+  # CNAME Record:
+  CUSTOM_CNAME_RECORD="cname=$PIHOLE_BACKEND_FQDN,$BOOTSTRAP_FQDN
+  cname=$NEXUS_BACKEND_FQDN,$BOOTSTRAP_FQDN
+  cname=$DOCKER_REGISTRY_BACKEND_FQDN,$BOOTSTRAP_FQDN
+  cname=$TRAEFIK_FQDN,$BOOTSTRAP_FQDN
+  cname=$PIHOLE_FRONTEND_FQDN,$BOOTSTRAP_FQDN
+  cname=$NEXUS_FRONTEND_FQDN,$BOOTSTRAP_FQDN
+  cname=$DOCKER_REGISTRY_FRONTEND_FQDN,$BOOTSTRAP_FQDN"
+  # Append the custom DNS list to the pihole custom list file and restart the DNS service
+  echo "Appending the custom A record to the pihole custom list file, the CNAME record to 05-pihole-custom-cname.conf,  and restarting the DNS service"
+  # if there are any duplicate DNS will fail to start on Pi-hole so I'm wiping the 05-pihole-custom-cname.conf since running the script again without destroying the container will cause the file to be appended to again, bricking the system
+  dockerSHCommand="
+  sudo echo \"$CUSTOM_DNS_A_RECORD\" >> /etc/pihole/custom.list &&
+  sudo touch /etc/dnsmasq.d/05-pihole-custom-cname.conf &&
+  sudo echo \"$CUSTOM_CNAME_RECORD\" > /etc/dnsmasq.d/05-pihole-custom-cname.conf &&
+  pihole restartdns"
+  docker exec pihole sh -c "$dockerSHCommand"
+}
+customdnslist
 #docker exec -it pihole sh -c "echo -e \"$CUSTOM_DNS_A_RECORD\" >> /etc/pihole/custom.list && pihole restartdns"
 #echo "Setting default DNS servers on Pi-hole to cloudflare 1.1.1.1 and 1.0.0.1"
 #curl -s -b cookies.txt -X POST $PIHOLE_SETTINGS_URL --data-raw "DNSserver1.1.1.1=true&DNSserver1.0.0.1=true&custom1val=&custom2val=&custom3val=&custom4val=&DNSinterface=all&rate_limit_count=1000&rate_limit_interval=60&field=DNS&token=$PIHOLE_TOKEN" > /dev/null
@@ -542,20 +541,22 @@ echo "$GOVC_VM's IP: $VM_IP"
 
 # Define the custom DNS list
 #make this a CNAMe record instead of an A record
-# A record:
-CUSTOM_DNS_A_RECORD="
-$VM_IP $VM_URL"
-#CNAME Record:
-CUSTOM_CNAME_RECORD="
-cname=$VM_URL,$PORTAINER_BACKEND_FQDN
-cname=$VM_URL,$OPENLDAP_BACKEND_FQDN
-cname=$VM_URL,$VM_NEXUS_BACKEND_FQDN
-cname=$VM_URL,$VM_NEXUS_FRONTEND_FQDN
-"
-# Append the custom DNS list to the pihole custom list file and restart the DNS service
-echo "Appending the custom A record to the pihole custom list file, the CNAME record to 02-custom.conf,  and restarting the DNS service" 
-dockerSHCommand="echo \"$CUSTOM_DNS_A_RECORD\" >> /etc/pihole/custom.list && touch /etc/dnsmasq.d/02-custom.conf  && echo \"$CUSTOM_CNAME_RECORD\" >> /etc/dnsmasq.d/02-custom.conf && pihole restartdns"
-docker exec pihole sh -c "$dockerSHCommand"
+set_custom_dns() {
+  # A record:
+  CUSTOM_DNS_A_RECORD="$VM_IP $VM_FQDN"
+  #CNAME Record:
+  CUSTOM_CNAME_RECORD="cname=$PORTAINER_BACKEND_FQDN, $VM_FQDN
+  cname=$PORTAINER_FRONTEND_FQDN, $VM_FQDN
+  cname=$OPENLDAP_BACKEND_FQDN,$VM_FQDN
+  cname=$OPENLDAP_FRONTEND_FQDN,$VM_FQDN
+  cname=$VM_NEXUS_BACKEND_FQDN,$VM_FQDN
+  cname=$VM_NEXUS_FRONTEND_FQDN,$VM_FQDN"
+  # Append the custom DNS list to the pihole custom list file and restart the DNS service
+  echo "Appending the custom A record to the pihole custom list file, the CNAME record to 05-pihole-custom-cname.conf,  and restarting the DNS service" 
+  dockerSHCommand="echo \"$CUSTOM_DNS_A_RECORD\" >> /etc/pihole/custom.list; echo \"$CUSTOM_CNAME_RECORD\" >> /etc/dnsmasq.d/05-pihole-custom-cname.conf; pihole restartdns"
+  docker exec pihole sh -c "$dockerSHCommand"
+}
+set_custom_dns
 
 # display a simple https health check on pihole, traefik, nexus, portainer, and openldap, using their frontend URLs with red/green statuses
 echo "Checking health of pihole, traefik, nexus, portainer, and openldap"
