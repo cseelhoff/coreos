@@ -123,9 +123,6 @@ LDAP_CONFIG_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 export PORTAINER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 DJANGO_SUPERUSER_PASSWORD=$(openssl rand -base64 32 | tr '+' '0')
 #change these away from hardcoded creds once we know this works
-AWX_POSTGRES_PASSWORD="rzabMdUaDNuyQGmnYUQN" #$(openssl rand -base64 32)
-BROADCAST_WEBSOCKET_SECRET="QnJ1V0FzUG5Eb2pIRURCRnFKQ0Y=" #$(openssl rand -base64 32)
-AWX_SECRET_KEY="JDqxKuQemHEajsZVZFQs" #$(openssl rand -base64 32)
 PIHOLE_SHORTNAME=pihole
 NEXUS_SHORTNAME=nexus-backup #bootstrap
 VM_NEXUS_SHORTNAME=nexus
