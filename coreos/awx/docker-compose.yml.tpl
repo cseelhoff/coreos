@@ -20,6 +20,9 @@ services:
       DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD}
       UWSGI_MOUNT_PATH: /
       RUN_MIGRATIONS: 1
+      TOWER_DATABASE_PASSWORD: password
+      BROADCAST_WEBSOCKET_SECRET: password
+      TOWER_SECRET_KEY: password
     links:
       - postgres
       - redis
@@ -28,7 +31,7 @@ services:
       - service-mesh
     working_dir: "/awx_devel"
     volumes:
-      #- "/opt/awx/etc/receptor/receptor.conf.lock:/etc/receptor/receptor.conf.lock"
+      - "/opt/awx/etc/receptor/receptor.conf.lock:/etc/receptor/receptor.conf.lock"
       #- "/opt/awx/etc/receptor/certs:/etc/receptor/certs"  # TODO: optionally generate certs
       - "/sys/fs/cgroup:/sys/fs/cgroup"
       #- "~/.kube/config:/var/lib/awx/.kube/config"
@@ -38,7 +41,6 @@ services:
     ports:
       - "7899-7999:7899-7999"  # sdb-listen
       - "6899:6899"
-      #- "8080:8080"  # unused but mapped for debugging
       - "8888:8888"  # jupyter notebook
       - "8013:8013"  # http
       - "8043:8043"  # https
@@ -48,7 +50,6 @@ services:
     image: redis:latest
     container_name: redis
     volumes:
-      #- usr_local_etc_redis:/usr/local/etc/redis
       - "/opt/awx/usr/local/etc/redis/redis.conf:/usr/local/etc/redis/redis.conf:Z"
       - "redis_socket:/var/run/redis/:rw"
     networks:
@@ -71,7 +72,6 @@ services:
       - awx
     ports:
        - "5441:5432"
-
 volumes:
   postgresql:
   redis_socket:

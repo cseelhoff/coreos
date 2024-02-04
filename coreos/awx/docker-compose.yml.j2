@@ -1,0 +1,45 @@
+#jinja2: lstrip_blocks: True
+---
+version: '2.1'
+services:
+{% for i in range(control_plane_node_count|int) %}
+  {% set container_postfix = loop.index %}
+  {% set awx_sdb_port_start = 7899 + (loop.index0*1000) | int %}
+  {% set awx_sdb_port_end = 7999 + (loop.index0*1000) | int %}
+  # Primary AWX Development Container
+  awx_{{ container_postfix }}:
+    user: "{{ ansible_user_uid }}"
+    image: "{{ awx_image }}:{{ awx_image_tag }}"
+    container_name: tools_awx_{{ container_postfix }}
+    hostname: awx_{{ container_postfix }}
+    command: launch_awx.sh
+    environment:
+      OS: "{{ os_info.stdout }}"
+      SDB_HOST: 0.0.0.0
+      SDB_PORT: {{ awx_sdb_port_start }}
+      AWX_GROUP_QUEUES: tower
+      MAIN_NODE_TYPE: "${MAIN_NODE_TYPE:-hybrid}"
+      RECEPTORCTL_SOCKET: {{ receptor_socket_file }}
+      CONTROL_PLANE_NODE_COUNT: {{ control_plane_node_count|int }}
+      EXECUTION_NODE_COUNT: {{ execution_node_count|int }}
+      AWX_LOGGING_MODE: stdout
+      DJANGO_SUPERUSER_PASSWORD: {{ admin_password }}
+      UWSGI_MOUNT_PATH: {{ ingress_path }}
+{% if loop.index == 1 %}
+      RUN_MIGRATIONS: 1
+{% endif %}
+{% if minikube_container_group|bool %}
+      MINIKUBE_CONTAINER_GROUP: "true"
+{% endif %}
+    links:
+      - postgres
+      - redis_{{ container_postfix }}
+    networks:
+      - awx
+      - service-mesh
+    working_dir: "/awx_devel"
+    volumes:
+      - "../../../:/awx_devel"
+      - "../../docker-compose/supervisor.conf:/etc/supervisord.conf"
+      - "../../docker-compose/_sources/database.py:/etc/tower/conf.d/database.py"
+      - "../../docker-compose/_sources/websocket_secret.py:/etc/tower/conf.d/websocket_secret.py"

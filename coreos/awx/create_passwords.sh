@@ -1,5 +1,4 @@
 #!/bin/bash
-mkdir -p /etc/tower/conf.d
 cat << EOF > "/etc/tower/conf.d/database.py"
 DATABASES = {
     'default': {
@@ -13,7 +12,5 @@ DATABASES = {
     }
 }
 EOF
-
 echo "BROADCAST_WEBSOCKET_SECRET = \"${BROADCAST_WEBSOCKET_SECRET}\"" > "/etc/tower/conf.d/websocket_secret.py"
-
 echo "SECRET_KEY = \"${TOWER_SECRET_KEY}\"" > "/etc/tower/SECRET_KEY"

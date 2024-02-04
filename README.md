@@ -52,6 +52,20 @@ python3 -m http.server 80
 
 ulimit -n 65536 
 
+make awx/projects docker-compose-sources
+ansible-galaxy install --ignore-certs -r tools/docker-compose/ansible/requirements.yml;
+        ansible-playbook -i tools/docker-compose/inventory tools/docker-compose/ansible/initialize_containers.yml \
+            -e enable_vault=$(VAULT) \
+            -e vault_tls=$(VAULT_TLS);
+            
+docker-compose: awx/projects docker-compose-sources
+        ansible-galaxy install --ignore-certs -r tools/docker-compose/ansible/requirements.yml;
+        ansible-playbook -i tools/docker-compose/inventory tools/docker-compose/ansible/initialize_containers.yml \
+            -e enable_vault=$(VAULT) \
+            -e vault_tls=$(VAULT_TLS);
+        $(DOCKER_COMPOSE) -f tools/docker-compose/_sources/docker-compose.yml $(COMPOSE_OPTS) up $(COMPOSE_UP_OPTS) --remove-orphans
+
+
 docker exec tools_awx_1 make clean-ui ui-devel
 docker exec tools_awx_1 make clean-ui clean/ui-next ui-devel ui-next
 
