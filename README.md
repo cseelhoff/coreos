@@ -1,6 +1,6 @@
 ## To-Do
 Change from using A records for all of the container on the pihole to using CNAME records
-
+    - fixed except for the new .yml. That still needs to be updated to be in line with start.sh
 Make the script more non-destructive
 
 add acme.json check

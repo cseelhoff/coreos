@@ -16,7 +16,7 @@
           DNSMASQ_LISTENING: all
           TZ: "{{ timezone }}"
           PIHOLE_DNS_: "{{ upstream_dns_ips }}"
-          DHCP_ACTIVE: false
+          DHCP_ACTIVE: true
           DHCP_START: "{{ dhcp_start_ip }}"
           DHCP_END: "{{ dhcp_end_ip }}"
           DHCP_ROUTER: "{{ dhcp_router_ip }}"
