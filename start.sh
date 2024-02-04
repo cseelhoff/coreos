@@ -573,15 +573,15 @@ for service in "${services[@]}"; do
 done
 
 echo "`date +"%Y-%m-%d %T"` -- deployment complete!"
-echo "Automatically connecting to the VM using ssh"
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i ~/.ssh/id_rsa admin@$VM_IP
+# echo "Automatically connecting to the VM using ssh"
+# ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i ~/.ssh/id_rsa admin@$VM_IP
 
-# prompt user to press y to delete the VM
-read -p "Press y to delete the VM: " -n 1 -r
-if [[ $REPLY =~ ^[Yy]$ ]]
-then
-# delete the VM
-  govc vm.power -u $GOVC_CONNECTION_STRING -off $GOVC_VM
-  govc vm.destroy -u $GOVC_CONNECTION_STRING $GOVC_VM
-fi
-echo "\nDone"
+# # prompt user to press y to delete the VM
+# read -p "Press y to delete the VM: " -n 1 -r
+# if [[ $REPLY =~ ^[Yy]$ ]]
+# then
+# # delete the VM
+#   govc vm.power -u $GOVC_CONNECTION_STRING -off $GOVC_VM
+#   govc vm.destroy -u $GOVC_CONNECTION_STRING $GOVC_VM
+# fi
+# echo "\nDone"
