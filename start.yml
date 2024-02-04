@@ -1,0 +1,354 @@
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Run Pi-hole Docker container
+      docker_container:
+        name: pihole
+        hostname: virtual-pihole
+        image: "{{ pihole_docker_image }}"
+        state: started
+        restart_policy: unless-stopped
+        network_mode: host
+        capabilities:
+          - NET_ADMIN
+        env:
+          DNSMASQ_LISTENING: all
+          TZ: "{{ timezone }}"
+          PIHOLE_DNS_: "{{ upstream_dns_ips }}"
+          DHCP_ACTIVE: false
+          DHCP_START: "{{ dhcp_start_ip }}"
+          DHCP_END: "{{ dhcp_end_ip }}"
+          DHCP_ROUTER: "{{ dhcp_router_ip }}"
+          PIHOLE_DOMAIN: "{{ domain_name }}"
+          VIRTUAL_HOST: "virtual-pihole.{{ domain_name }}"
+          WEBPASSWORD: "{{ pihole_password }}"
+          WEB_PORT: "{{ pihole_port }}"
+        volumes:
+          - "/etc/pihole/"
+          - "/etc/dnsmasq.d/"
+
+    - name: Check DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings
+      command: dig +short "{{ nexus_frontend_fqdn }}"
+      register: dig_output
+      changed_when: false
+
+    - debug:
+        var: dig_output.stdout_lines
+
+    - name: Set custom DNS A record
+      set_fact:
+        custom_dns_a_record: |
+          {{ govc_ip }} {{ govc_url }}
+          {{ bootstrap_ip }} {{ bootstrap_url }}
+
+    - name: Set custom CNAME record
+      set_fact:
+        custom_cname_record: |
+          cname={{ bootstrap_url }},{{ pihole_backend_fqdn }}
+          cname={{ bootstrap_url }},{{ nexus_backend_fqdn }}
+          cname={{ bootstrap_url }},{{ docker_registry_backend_fqdn }}
+          cname={{ bootstrap_url }},{{ traefik_fqdn }}
+          cname={{ bootstrap_url }},{{ pihole_frontend_fqdn }}
+          cname={{ bootstrap_url }},{{ nexus_frontend_fqdn }}
+          cname={{ bootstrap_url }},{{ docker_registry_frontend_fqdn }}
+
+    - name: Append the custom DNS list to the pihole custom list file
+      command: docker exec pihole sh -c "echo \"{{ custom_dns_a_record }}\" >> /etc/pihole/custom.list"
+
+    - name: Create custom dnsmasq configuration file
+      command: docker exec pihole touch /etc/dnsmasq.d/02-custom.conf
+
+    - name: Set custom CNAME record in dnsmasq configuration file
+      command: docker exec pihole sh -c "echo \"{{ custom_cname_record }}\" > /etc/dnsmasq.d/02-custom.conf"
+
+    - name: Restart DNS service
+      command: docker exec pihole pihole restartdns
+
+    - name: Set DNS to use 127.0.0.1 (Pi-hole) and set search domain
+      copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 127.0.0.1
+          search {{ domain_name }}
+        owner: root
+        group: root
+        mode: '0644'
+      become: yes
+
+    - name: Set DNSStubListener to no
+      copy:
+        dest: /etc/systemd/resolved.conf
+        content: |
+          [Resolve]
+          DNS=127.0.0.1
+          DNSStubListener=no
+        owner: root
+        group: root
+        mode: '0644'
+      become: yes
+
+    - name: Check DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings
+      command: dig +short "{{ nexus_frontend_fqdn }}"
+      register: dig_output
+      changed_when: false
+
+    - debug:
+        var: dig_output.stdout_lines
+
+    - name: Create traefik-data volume
+      community.docker.docker_volume:
+        name: traefik-data
+        state: present
+
+    - name: Create temporary container to copy acme.json to traefik-data volume
+      community.docker.docker_container:
+        name: temp
+        image: alpine
+        command: tail -f /dev/null
+        volumes:
+          - traefik-data:/data
+        state: started
+        detach: yes
+
+    - name: Check if acme.json exists in backup folder
+      stat:
+        path: backup/acme.json
+      register: acme_json
+
+    - name: Restore acme.json from backup
+      command: docker cp backup/acme.json temp:/data/
+      when: acme_json.stat.exists
+
+    - name: Create new acme.json
+      command: docker exec temp touch /data/acme.json
+      when: not acme_json.stat.exists
+
+    - name: Set permissions to 600 on Traefik acme.json
+      command: docker exec temp chmod 600 /data/acme.json
+
+    - name: Stop and remove temporary container
+      community.docker.docker_container:
+        name: temp
+        state: absent
+
+    - name: Start Traefik with docker-compose
+      community.docker.docker_compose:
+        project_src: bootstrap/traefik/
+        state: present
+
+    - name: Change Nexus password
+      uri:
+        url: "{{ NEXUS_SERIVICE_REST_URL }}/security/users/admin/change-password"
+        method: PUT
+        user: admin
+        password: "{{ NEXUS_TEMP_PASSWORD }}"
+        body: "{{ NEXUS_PASSWORD }}"
+        headers:
+          Content-Type: "text/plain"
+        status_code: 204
+
+    - name: Set active realms
+      uri:
+        url: "{{ NEXUS_SERIVICE_REST_URL }}/security/realms/active"
+        method: PUT
+        user: admin
+        password: "{{ NEXUS_PASSWORD }}"
+        body_format: json
+        body:
+          - "LdapRealm"
+          - "DockerToken"
+          - "NexusAuthenticatingRealm"
+        headers:
+          Content-Type: "application/json"
+        status_code: 204
+
+    - name: Create docker-hosted repository
+      uri:
+        url: "{{ NEXUS_SERIVICE_REST_URL }}/repositories/docker/hosted"
+        method: POST
+        user: admin
+        password: "{{ NEXUS_PASSWORD }}"
+        body_format: json
+        body:
+          name: "docker-hosted"
+          online: true
+          storage:
+            blobStoreName: "default"
+            strictContentTypeValidation: true
+            writePolicy: "ALLOW"
+          docker:
+            v1Enabled: false
+            forceBasicAuth: false
+        headers:
+          Content-Type: "application/json"
+        status_code: 200
+
+    # Repeat the above task for docker-proxy and ghcr-proxy repositories with the appropriate body
+
+    - name: Create docker-group repository
+      uri:
+        url: "{{ NEXUS_SERIVICE_REST_URL }}/repositories/docker/group"
+        method: POST
+        user: admin
+        password: "{{ NEXUS_PASSWORD }}"
+        body_format: json
+        body:
+          name: "docker-group"
+          online: true
+          storage:
+            blobStoreName: "default"
+            strictContentTypeValidation: true
+          group:
+            memberNames:
+              - "docker-hosted"
+              - "docker-proxy"
+              - "ghcr-proxy"
+          docker:
+            v1Enabled: false
+            forceBasicAuth: false
+            httpPort: "{{ DOCKER_REGISTRY_PORT }}"
+        headers:
+          Content-Type: "application/json"
+        status_code: 200
+
+    - name: Stop Nexus to create backup
+      docker_container:
+        name: nexus
+        state: stopped
+        stop_timeout: 120
+
+    - name: Create Nexus backup directory if it does not exist
+      file:
+        path: backup
+        state: directory
+
+    - name: Create Nexus backup
+      command: >
+        docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
+
+    - name: Start Nexus
+      docker_container:
+        name: nexus
+        state: started
+
+    - name: Wait for Nexus to start
+      uri:
+        url: "{{ NEXUS_SERIVICE_REST_URL }}/security/users"
+        user: admin
+        password: "{{ NEXUS_PASSWORD }}"
+        method: GET
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 60
+      delay: 1
+
+    - name: Create backup directory if it does not exist
+      file:
+        path: backup
+        state: directory
+
+    - name: Create backup of acme.json
+      command: docker cp traefik:/data/acme.json backup/
+
+    - debug:
+        msg: "Bootstrap complete!"
+
+    - name: Connect to vCenter
+      community.vmware.vmware_about_info:
+        hostname: "{{ GOVC_URL }}"
+        username: "{{ GOVC_USERNAME }}"
+        password: "{{ GOVC_PASSWORD }}"
+        validate_certs: no
+
+    - name: Create library if it does not exist
+      community.vmware.vmware_content_library_manager:
+        hostname: "{{ GOVC_URL }}"
+        username: "{{ GOVC_USERNAME }}"
+        password: "{{ GOVC_PASSWORD }}"
+        library_name: "{{ VCENTER_LIBRARY_NAME }}"
+        library_type: content
+        datastore_name: "{{ GOVC_DATASTORE }}"
+        state: present
+        validate_certs: no
+
+    - name: Import OVA into library
+      community.vmware.vmware_content_library_info:
+        hostname: "{{ GOVC_URL }}"
+        username: "{{ GOVC_USERNAME }}"
+        password: "{{ GOVC_PASSWORD }}"
+        library_name: "{{ VCENTER_LIBRARY_NAME }}"
+        validate_certs: no
+      register: library_info
+
+    - name: Import OVA if it does not exist
+      community.vmware.vmware_content_deploy_template:
+        hostname: "{{ GOVC_URL }}"
+        username: "{{ GOVC_USERNAME }}"
+        password: "{{ GOVC_PASSWORD }}"
+        template: "{{ COREOS_OVA_NAME }}"
+        name: "{{ GOVC_VM }}"
+        datacenter: "{{ DATACENTER_NAME }}"
+        datastore: "{{ GOVC_DATASTORE }}"
+        folder: "{{ FOLDER_NAME }}"
+        state: present
+        validate_certs: no
+      when: not ova_exists
+
+    - name: Configure VM
+      community.vmware.vmware_guest:
+        hostname: "{{ GOVC_URL }}"
+        username: "{{ GOVC_USERNAME }}"
+        password: "{{ GOVC_PASSWORD }}"
+        datacenter: "{{ DATACENTER_NAME }}"
+        name: "{{ GOVC_VM }}"
+        hardware:
+          memory_mb: 32000
+          num_cpus: 8
+        customvalues:
+          - key: "guestinfo.ignition.config.data"
+            value: "{{ lookup('file', 'coreos/coreos.ign') | b64encode }}"
+          - key: "guestinfo.ignition.config.data.encoding"
+            value: "base64"
+        state: poweredon
+        validate_certs: no
+
+    - name: Get VM IP
+      community.vmware.vmware_guest_info:
+        hostname: "{{ GOVC_URL }}"
+        username: "{{ GOVC_USERNAME }}"
+        password: "{{ GOVC_PASSWORD }}"
+        datacenter: "{{ DATACENTER_NAME }}"
+        name: "{{ GOVC_VM }}"
+        validate_certs: no
+      register: vm_info
+
+    - name: Set VM IP fact
+      set_fact:
+        VM_IP: "{{ vm_info['instance']['ipv4'] }}"
+
+    - debug:
+        msg: "YOUR PORTAINER PASSWORD IS: {{ PORTAINER_PASSWORD }}"
+    - debug:
+        msg: "{{ GOVC_VM }}'s IP: {{ VM_IP }}"
+        
+    - name: Stop Nexus to create backup
+      docker_container:
+        name: nexus
+        state: stopped
+        stop_timeout: 120
+
+    - name: Create Nexus backup directory if it does not exist
+      file:
+        path: backup
+        state: directory
+
+    - name: Create Nexus backup
+      command: >
+        docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
+
+    - name: Start Nexus
+      docker_container:
+        name: nexus
+        state: started
