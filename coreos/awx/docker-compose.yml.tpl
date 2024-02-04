@@ -28,21 +28,7 @@ services:
       - service-mesh
     working_dir: "/awx_devel"
     volumes:
-      #- etc_tower:/etc/tower
-      #- etc_nginx:/etc/nginx
-      #- etc_receptor:/etc/receptor
-      - "/opt/awx/etc/supervisord.conf:/etc/supervisord.conf"
-      - /opt/awx_devel/awx:/awx_devel
-      #- "../../../:/awx_devel"
-      #- "../../docker-compose/supervisor.conf:/etc/supervisord.conf"
-      - "/opt/awx/etc/tower/conf.d/database.py:/etc/tower/conf.d/database.py"
-      - "/opt/awx/etc/tower/conf.d/websocket_secret.py:/etc/tower/conf.d/websocket_secret.py"
-      - "/opt/awx/etc/tower/conf.d/local_settings.py:/etc/tower/conf.d/local_settings.py"
-      - "/opt/awx/etc/nginx/nginx.conf:/etc/nginx/nginx.conf"
-      - "/opt/awx/etc/nginx/conf.d/nginx.locations.conf:/etc/nginx/conf.d/nginx.locations.conf"
-      - "/opt/awx/etc/tower/SECRET_KEY:/etc/tower/SECRET_KEY"
-      - "/opt/awx/etc/receptor/receptor.conf:/etc/receptor/receptor.conf"
-      - "/opt/awx/etc/receptor/receptor.conf.lock:/etc/receptor/receptor.conf.lock"
+      #- "/opt/awx/etc/receptor/receptor.conf.lock:/etc/receptor/receptor.conf.lock"
       #- "/opt/awx/etc/receptor/certs:/etc/receptor/certs"  # TODO: optionally generate certs
       - "/sys/fs/cgroup:/sys/fs/cgroup"
       #- "~/.kube/config:/var/lib/awx/.kube/config"
@@ -69,12 +55,6 @@ services:
       - awx
     entrypoint: ["redis-server"]
     command: ["/usr/local/etc/redis/redis.conf"]
-  # A useful container that simply passes through log messages to the console
-  # helpful for testing awx/tower logging
-  # logstash:
-  #   build:
-  #     context: ./docker-compose
-  #     dockerfile: Dockerfile-logstash
   postgres:
     image: postgres:12
     container_name: postgres
