@@ -1,5 +1,14 @@
 ---
 - hosts: localhost
+  vars:
+    services:
+      - "{{ PIHOLE_FRONTEND_FQDN }}"
+      - "{{ TRAEFIK_FQDN }}"
+      - "{{ NEXUS_FRONTEND_FQDN }}"
+      - "{{ VM_NEXUS_FRONTEND_FQDN }}"
+      - "{{ PORTAINER_BACKEND_FQDN }}"
+      - "{{ OPENLDAP_BACKEND_FQDN }}"
+      - "{{ BOOTSTRAP_FQDN }}"
   gather_facts: no
   tasks:
     - name: Run Pi-hole Docker container
@@ -224,8 +233,11 @@
         state: directory
 
     - name: Create Nexus backup
-      command: >
-        docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
+      shell: |
+        docker run --rm \
+        -v nexus-data:/nexus-data \
+        -v $(pwd)/backup:/backup \
+        alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
 
     - name: Start Nexus
       docker_container:
@@ -332,23 +344,35 @@
         msg: "YOUR PORTAINER PASSWORD IS: {{ PORTAINER_PASSWORD }}"
     - debug:
         msg: "{{ GOVC_VM }}'s IP: {{ VM_IP }}"
-        
-    - name: Stop Nexus to create backup
-      docker_container:
-        name: nexus
-        state: stopped
-        stop_timeout: 120
 
-    - name: Create Nexus backup directory if it does not exist
-      file:
-        path: backup
-        state: directory
+    - name: Define the custom DNS list
+      set_fact:
+        custom_dns_a_record: "{{ VM_IP }} {{ VM_FQDN }}"
+        custom_cname_record: |
+          cname={{ PORTAINER_BACKEND_FQDN }},{{ VM_FQDN }}
+          cname={{ PORTAINER_FRONTEND_FQDN }},{{ VM_FQDN }}
+          cname={{ OPENLDAP_BACKEND_FQDN }},{{ VM_FQDN }}
+          cname={{ OPENLDAP_FRONTEND_FQDN }},{{ VM_FQDN }}
+          cname={{ VM_NEXUS_BACKEND_FQDN }},{{ VM_FQDN }}
+          cname={{ VM_NEXUS_FRONTEND_FQDN }},{{ VM_FQDN }}
 
-    - name: Create Nexus backup
-      command: >
-        docker run --rm -v nexus-data:/nexus-data -v $(pwd)/backup:/backup alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
+    - name: Append the custom DNS list to the pihole custom list file and restart the DNS service
+      shell: |
+        docker exec pihole sh -c "\
+        echo \"{{ custom_dns_a_record }}\" >> /etc/pihole/custom.list && \
+        echo \"{{ custom_cname_record }}\" >> /etc/dnsmasq.d/05-pihole-custom-cname.conf && \
+        pihole restartdns"
 
-    - name: Start Nexus
-      docker_container:
-        name: nexus
-        state: started
+    - name: Check health of each service
+      uri:
+        url: "https://{{ item }}"
+        method: GET
+        status_code: 200
+      loop: "{{ services }}"
+      register: result
+      ignore_errors: true
+
+    - name: Display health status
+      debug:
+        msg: "{{ item.item }} is {{ 'healthy' if item.status == 200 else 'unhealthy' }}"
+      loop: "{{ result.results }}"
