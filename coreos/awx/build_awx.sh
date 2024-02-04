@@ -90,7 +90,7 @@ make awx/projects docker-compose-sources
 make docker-compose-build
 #docker-compose -f tools/docker-compose/_sources/docker-compose.yml up
 
-docker tag quay.io/ansible/awx_devel:23.7.0-ENV docker.177cpt.com/ansible/awx_devel:23.7.0-ENV
+docker tag ghcr.io/ansible/awx_devel:23.7.0-ENV docker.177cpt.com/ansible/awx_devel:23.7.0-ENV
 docker login docker.177cpt.com
 docker push docker.177cpt.com/ansible/awx_devel:23.7.0-ENV
 
