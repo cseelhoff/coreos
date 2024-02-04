@@ -94,7 +94,11 @@ docker tag ghcr.io/ansible/awx_devel:23.7.0-ENV docker.177cpt.com/ansible/awx_de
 docker login docker.177cpt.com
 docker push docker.177cpt.com/ansible/awx_devel:23.7.0-ENV
 
+# awx-manage changepassword admin
+
 # http://127.0.0.1:8013/ui_next
+# http://127.0.0.1:8013/ui_next/dashboard
+# http://127.0.0.1:8013/overview
 
 #docker run -it -v /etc/timezone:/etc/timezone -v /var/run/docker.sock:/var/run/docker.sock.0 ubuntu:24.04 /bin/bash
 #run $SH_command in a new ubuntu:24.04 docker container with var/run/docker.sock mounted
