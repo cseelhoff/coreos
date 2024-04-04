@@ -4,22 +4,69 @@
     - name: "pihole_password"
       prompt: "Enter the Pi-hole password"
       private: yes
-  vars:
-    pihole_backend_fqdn: "pihole-backend.{{ domain_name }}"
-    services:
-      - "{{ PIHOLE_FRONTEND_FQDN }}"
-      - "{{ TRAEFIK_FQDN }}"
-      - "{{ NEXUS_FRONTEND_FQDN }}"
-      - "{{ VM_NEXUS_FRONTEND_FQDN }}"
-      - "{{ PORTAINER_BACKEND_FQDN }}"
-      - "{{ OPENLDAP_BACKEND_FQDN }}"
-      - "{{ BOOTSTRAP_FQDN }}"
-    nexus_frontend_fqdn: "{{ NEXUS_SHORTNAME }}.{{ domain_name }}"
   gather_facts: no
   tasks:
     - name: Include variables from vars.yml
       include_vars:
         file: vars.yml
+
+    - name: Gather network facts
+      setup:
+        gather_subset: network
+
+    - name: Set additional variables
+      set_fact:
+        host_ip: "{{ ansible_default_ipv4.address }}"
+        dns_server_ip: "{{ host_ip }}"
+        bootstrap_ip: "{{ host_ip }}"
+        dhcp_router_ip: "{{ ansible_default_ipv4.gateway }}"
+        bootstrap_fqdn: "{{ bootstrap_shortname }}.{{ domain_name }}"
+        nexus_frontend_fqdn: "{{ NEXUS_SHORTNAME }}.{{ domain_name }}"
+        pihole_backend_fqdn: "pihole-backend.{{ domain_name }}"
+        pihole_frontend_fqdn: "{{ pihole_shortname }}.{{ domain_name }}"
+        vm_nexus_frontend_fqdn: "{{ vm_nexus_shortname }}.{{ domain_name }}"
+        docker_registry_frontend_fqdn: "{{ docker_shortname }}.{{ domain_name }}"
+        vm_docker_registry_frontend_fqdn: "{{ vm_docker_shortname }}.{{ domain_name }}"
+        traefik_fqdn: "{{ traefik_shortname }}.{{ domain_name }}"
+        portainer_frontend_fqdn: "{{ portainer_shortname }}.{{ domain_name }}"
+        openldap_frontend_fqdn: "{{ openldap_shortname }}.{{ domain_name }}"
+        nexus_backend_fqdn: "{{ nexus_shortname }}-backend01.{{ domain_name }}"
+        vm_nexus_backend_fqdn: "{{ vm_nexus_shortname }}-backend01.{{ domain_name }}"
+        docker_registry_backend_fqdn: "{{ docker_shortname }}-backend01.{{ domain_name }}"
+        vm_docker_registry_backend_fqdn: "{{ vm_docker_shortname }}-backend01.{{ domain_name }}"
+        portainer_backend_fqdn: "{{ portainer_shortname }}-backend01.{{ domain_name }}"
+        openldap_backend_fqdn: "{{ openldap_shortname }}-backend01.{{ domain_name }}"
+        vm_fqdn: "{{ vm_shortname }}.{{ domain_name }}"
+        traefik_ip: "{{ bootstrap_ip }}"
+        pihole_ip: "{{ bootstrap_ip }}"
+        nexus_ip: "{{ bootstrap_ip }}"
+        docker_registry_ip: "{{ bootstrap_ip }}"
+        pihole_backend_url: "http://{{ pihole_backend_fqdn }}:{{ pihole_port }}"
+        nexus_backend_url: "http://{{ nexus_backend_fqdn }}:{{ nexus_port }}"
+        vm_nexus_backend_url: "http://{{ vm_nexus_backend_fqdn }}:{{ vm_nexus_port }}"
+        docker_registry_backend_url: "http://{{ docker_registry_backend_fqdn }}:{{ docker_registry_port }}"
+        vm_docker_registry_backend_url: "http://{{ vm_docker_registry_backend_fqdn }}:{{ vm_docker_registry_port }}"
+        portainer_localhost_url: "http://localhost:{{ portainer_port }}"
+        portainer_backend_url: "http://{{ portainer_backend_fqdn }}:{{ portainer_port }}"
+        openldap_backend_url: "http://{{ openldap_backend_fqdn }}:{{ openldap_port }}"
+        bootstrap_url: "http://{{ bootstrap_fqdn }}"
+        nexus_service_rest_url: "https://{{ nexus_frontend_fqdn }}/service/rest/v1"
+        vm_nexus_service_rest_url: "https://{{ vm_nexus_frontend_fqdn }}/service/rest/v1"
+        govc_connection_string: "{{ govc_username }}:{{ govc_password }}@{{ govc_url }}"
+        services:
+          - "{{ pihole_frontend_fqdn }}"
+          - "{{ traefik_fqdn }}"
+          - "{{ nexus_frontend_fqdn }}"
+          - "{{ vm_nexus_frontend_fqdn }}"
+          - "{{ portainer_backend_fqdn }}"
+          - "{{ openldap_backend_fqdn }}"
+          - "{{ bootstrap_fqdn }}"
+
+    - name: Generate a random password for Pi-hole
+      set_fact:
+        pihole_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,specialchars') }}"
+      no_log: true
+
     - name: Run Pi-hole Docker container
       docker_container:
         name: pihole
@@ -32,13 +79,13 @@
           - NET_ADMIN
         env:
           PIHOLE_DOMAIN: "{{ domain_name }}"
+          VIRTUAL_HOST: "virtual-pihole.{{ domain_name }}"
           DNSMASQ_LISTENING: all
           PIHOLE_DNS_: "{{ upstream_dns_ips }}"
           DHCP_ACTIVE: true
           DHCP_START: "{{ dhcp_start_ip }}"
           DHCP_END: "{{ dhcp_end_ip }}"
           DHCP_ROUTER: "{{ dhcp_router_ip }}"
-          VIRTUAL_HOST: "virtual-pihole.{{ domain_name }}"
           WEBPASSWORD: "{{ pihole_password }}"
           WEB_PORT: "{{ pihole_port }}"
         volumes:
@@ -46,21 +93,13 @@
           - "/etc/dnsmasq.d/"
           - "/etc/localtime:/etc/localtime:ro"
 
-    - name: Check DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings
-      command: dig +short "{{ nexus_frontend_fqdn }}"
-      register: dig_output
-      changed_when: false
-
-    - debug:
-        var: dig_output.stdout_lines
-
-    - name: Set custom DNS A record
+    - name: Set custom DNS A records
       set_fact:
         custom_dns_a_record: |
           {{ govc_ip }} {{ govc_url }}
           {{ bootstrap_ip }} {{ bootstrap_url }}
 
-    - name: Set custom CNAME record
+    - name: Set custom CNAME records
       set_fact:
         custom_cname_record: |
           cname={{ bootstrap_url }},{{ pihole_backend_fqdn }}
@@ -80,39 +119,16 @@
     - name: Set custom CNAME record in dnsmasq configuration file
       command: docker exec pihole sh -c "echo \"{{ custom_cname_record }}\" > /etc/dnsmasq.d/02-custom.conf"
 
-    - name: Restart DNS service
+    - name: Restart Pi-hole DNS service
       command: docker exec pihole pihole restartdns
 
-    - name: Set DNS to use 127.0.0.1 (Pi-hole) and set search domain
-      copy:
-        dest: /etc/resolv.conf
-        content: |
-          nameserver 127.0.0.1
-          search {{ domain_name }}
-        owner: root
-        group: root
-        mode: '0644'
+    - name: Set DNS to use 127.0.0.1 (Pi-hole)
+      nmcli:
+        type: dns
+        interface: "{{ ansible_default_ipv4.interface }}"
+        dns: '127.0.0.1'
+        state: present
       become: yes
-
-    - name: Set DNSStubListener to no
-      copy:
-        dest: /etc/systemd/resolved.conf
-        content: |
-          [Resolve]
-          DNS=127.0.0.1
-          DNSStubListener=no
-        owner: root
-        group: root
-        mode: '0644'
-      become: yes
-
-    - name: Check DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings
-      command: dig +short "{{ nexus_frontend_fqdn }}"
-      register: dig_output
-      changed_when: false
-
-    - debug:
-        var: dig_output.stdout_lines
 
     - name: Create traefik-data volume
       community.docker.docker_volume:
@@ -138,7 +154,7 @@
       command: docker cp backup/acme.json temp:/data/
       when: acme_json.stat.exists
 
-    - name: Create new acme.json
+    - name: Create new acme.json if acme.json doesn't exist
       command: docker exec temp touch /data/acme.json
       when: not acme_json.stat.exists
 
@@ -150,28 +166,86 @@
         name: temp
         state: absent
 
+    - name: Create proxy network for Traefik
+      community.docker.docker_network:
+        name: proxy
+        state: present
+
+    - name: Generate a random password for Traefik
+      set_fact:
+        traefik_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,specialchars') }}"
+      no_log: true
+
     - name: Start Traefik with docker-compose
       community.docker.docker_compose:
         project_src: bootstrap/traefik/
         state: present
 
+    - name: Create nexus-data volume
+      community.docker.docker_volume:
+        name: nexus-data
+        state: present
+
+    - name: Check if backup file exists
+      stat:
+        path: backup/nexus-backup.tar.gz
+      register: backup_file
+
+    - name: Restore Nexus from backup
+      community.docker.docker_container:
+        name: nexus_restore
+        image: alpine
+        state: started
+        volumes:
+          - nexus-data:/nexus-data
+          - "{{ playbook_dir }}/backup:/backup"
+        command: tar -xzf /backup/nexus-backup.tar.gz -C /nexus-data
+      when: backup_file.stat.exists
+
+    - name: Start Nexus container
+      community.docker.docker_container:
+        name: nexus
+        image: "{{ nexus_docker_image }}"
+        state: started
+        ports:
+          - "{{ nexus_port }}:{{ nexus_port }}"
+          - "{{ docker_registry_port }}:{{ docker_registry_port }}"
+        volumes:
+          - nexus-data:/nexus-data
+
+    - name: Wait for Nexus to start
+      uri:
+        url: "{{ nexus_service_rest_url }}/security/users"
+        method: GET
+        timeout: 10
+      register: nexus_service
+      until: nexus_service.status == 200
+      retries: 10
+      delay: 5
+
+    - name: Get Nexus temp password
+      command: "docker exec nexus cat /nexus-data/admin.password"
+      register: nexus_temp_password      
+      when: not backup_file.stat.exists
+
     - name: Change Nexus password
       uri:
-        url: "{{ NEXUS_SERIVICE_REST_URL }}/security/users/admin/change-password"
+        url: "{{ nexus_service_rest_url }}/security/users/admin/change-password"
         method: PUT
         user: admin
-        password: "{{ NEXUS_TEMP_PASSWORD }}"
-        body: "{{ NEXUS_PASSWORD }}"
+        password: "{{ nexus_temp_password }}"
+        body: "{{ nexus_password }}"
         headers:
           Content-Type: "text/plain"
         status_code: 204
+      when: not backup_file.stat.exists
 
     - name: Set active realms
       uri:
-        url: "{{ NEXUS_SERIVICE_REST_URL }}/security/realms/active"
+        url: "{{ nexus_service_rest_url }}/security/realms/active"
         method: PUT
         user: admin
-        password: "{{ NEXUS_PASSWORD }}"
+        password: "{{ nexus_password }}"
         body_format: json
         body:
           - "LdapRealm"
@@ -183,10 +257,10 @@
 
     - name: Create docker-hosted repository
       uri:
-        url: "{{ NEXUS_SERIVICE_REST_URL }}/repositories/docker/hosted"
+        url: "{{ nexus_service_rest_url }}/repositories/docker/hosted"
         method: POST
         user: admin
-        password: "{{ NEXUS_PASSWORD }}"
+        password: "{{ nexus_password }}"
         body_format: json
         body:
           name: "docker-hosted"
@@ -201,15 +275,76 @@
         headers:
           Content-Type: "application/json"
         status_code: 200
+      when: not backup_file.stat.exists
 
-    # Repeat the above task for docker-proxy and ghcr-proxy repositories with the appropriate body
+    - name: Creating docker-proxy repository
+      uri:
+        url: "{{ nexus_service_rest_url }}/repositories/docker/proxy"
+        method: POST
+        user: admin
+        password: "{{ nexus_password }}"
+        body_format: json
+        headers:
+          Content-Type: "application/json"
+        body: 
+          name: "docker-proxy"
+          online: true
+          storage:
+            blobStoreName: "default"
+            strictContentTypeValidation: true
+          proxy:
+            remoteUrl: "https://registry-1.docker.io"
+            contentMaxAge: 1440
+            metadataMaxAge: 1440
+          negativeCache:
+            enabled: true
+            timeToLive: 1440
+          httpClient:
+            blocked: false
+            autoBlock: false
+          docker:
+            v1Enabled: false
+            forceBasicAuth: false
+          dockerProxy:
+            indexType: "HUB"
+
+    - name: Creating ghcr-proxy repository
+      uri:
+        url: "{{ NEXUS_SERIVICE_REST_URL }}/repositories/docker/proxy"
+        method: POST
+        user: admin
+        password: "{{ nexus_password }}"
+        body_format: json
+        headers:
+          Content-Type: "application/json"
+        body: 
+          name: "ghcr-proxy"
+          online: true
+          storage:
+            blobStoreName: "default"
+            strictContentTypeValidation: true
+          proxy:
+            remoteUrl: "https://ghcr.io"
+            contentMaxAge: 1440
+            metadataMaxAge: 1440
+          negativeCache:
+            enabled: true
+            timeToLive: 1440
+          httpClient:
+            blocked: false
+            autoBlock: false
+          docker:
+            v1Enabled: false
+            forceBasicAuth: false
+          dockerProxy:
+            indexType: "REGISTRY"
 
     - name: Create docker-group repository
       uri:
-        url: "{{ NEXUS_SERIVICE_REST_URL }}/repositories/docker/group"
+        url: "{{ nexus_service_rest_url }}/repositories/docker/group"
         method: POST
         user: admin
-        password: "{{ NEXUS_PASSWORD }}"
+        password: "{{ nexus_password }}"
         body_format: json
         body:
           name: "docker-group"
@@ -225,21 +360,39 @@
           docker:
             v1Enabled: false
             forceBasicAuth: false
-            httpPort: "{{ DOCKER_REGISTRY_PORT }}"
+            httpPort: "{{ docker_registry_port }}"
         headers:
           Content-Type: "application/json"
         status_code: 200
+      when: not backup_file.stat.exists
+
+    - name: Pull Nexus Docker image
+      community.docker.docker_image:
+        name: "{{ docker_registry_frontend_fqdn }}/{{ nexus_docker_image }}"
+        source: pull
+
+    - name: Pull Portainer Docker image
+      community.docker.docker_image:
+        name: "{{ docker_registry_frontend_fqdn }}/{{ portainer_docker_image }}"
+        source: pull
+
+    - name: Pull Traefik Docker image
+      community.docker.docker_image:
+        name: "{{ docker_registry_frontend_fqdn }}/{{ traefik_docker_image }}"
+        source: pull
 
     - name: Stop Nexus to create backup
       docker_container:
         name: nexus
         state: stopped
         stop_timeout: 120
+      when: not backup_file.stat.exists
 
     - name: Create Nexus backup directory if it does not exist
       file:
         path: backup
         state: directory
+      when: not backup_file.stat.exists
 
     - name: Create Nexus backup
       shell: |
@@ -247,17 +400,19 @@
         -v nexus-data:/nexus-data \
         -v $(pwd)/backup:/backup \
         alpine sh -c "tar -C /nexus-data -czf /backup/nexus-backup.tar.gz ."
+      when: not backup_file.stat.exists
 
     - name: Start Nexus
       docker_container:
         name: nexus
         state: started
+      when: not backup_file.stat.exists
 
     - name: Wait for Nexus to start
       uri:
-        url: "{{ NEXUS_SERIVICE_REST_URL }}/security/users"
+        url: "{{ nexus_service_rest_url }}/security/users"
         user: admin
-        password: "{{ NEXUS_PASSWORD }}"
+        password: "{{ nexus_password }}"
         method: GET
         status_code: 200
       register: result
@@ -278,52 +433,52 @@
 
     - name: Connect to vCenter
       community.vmware.vmware_about_info:
-        hostname: "{{ GOVC_URL }}"
-        username: "{{ GOVC_USERNAME }}"
-        password: "{{ GOVC_PASSWORD }}"
+        hostname: "{{ govc_url }}"
+        username: "{{ govc_username }}"
+        password: "{{ govc_password }}"
         validate_certs: no
 
     - name: Create library if it does not exist
       community.vmware.vmware_content_library_manager:
-        hostname: "{{ GOVC_URL }}"
-        username: "{{ GOVC_USERNAME }}"
-        password: "{{ GOVC_PASSWORD }}"
-        library_name: "{{ VCENTER_LIBRARY_NAME }}"
+        hostname: "{{ govc_url }}"
+        username: "{{ govc_username }}"
+        password: "{{ govc_password }}"
+        library_name: "{{ vcenter_library_name }}"
         library_type: content
-        datastore_name: "{{ GOVC_DATASTORE }}"
+        datastore_name: "{{ govc_datastore }}"
         state: present
         validate_certs: no
 
     - name: Import OVA into library
       community.vmware.vmware_content_library_info:
-        hostname: "{{ GOVC_URL }}"
-        username: "{{ GOVC_USERNAME }}"
-        password: "{{ GOVC_PASSWORD }}"
-        library_name: "{{ VCENTER_LIBRARY_NAME }}"
+        hostname: "{{ govc_url }}"
+        username: "{{ govc_username }}"
+        password: "{{ govc_password }}"
+        library_name: "{{ vcenter_library_name }}"
         validate_certs: no
       register: library_info
 
     - name: Import OVA if it does not exist
       community.vmware.vmware_content_deploy_template:
-        hostname: "{{ GOVC_URL }}"
-        username: "{{ GOVC_USERNAME }}"
-        password: "{{ GOVC_PASSWORD }}"
-        template: "{{ COREOS_OVA_NAME }}"
-        name: "{{ GOVC_VM }}"
-        datacenter: "{{ DATACENTER_NAME }}"
-        datastore: "{{ GOVC_DATASTORE }}"
-        folder: "{{ FOLDER_NAME }}"
+        hostname: "{{ govc_url }}"
+        username: "{{ govc_username }}"
+        password: "{{ govc_password }}"
+        template: "{{ coreos_ova_name }}"
+        name: "{{ govc_vm }}"
+        datacenter: "{{ datacenter_name }}"
+        datastore: "{{ govc_datastore }}"
+        folder: "{{ folder_name }}"
         state: present
         validate_certs: no
       when: not ova_exists
 
     - name: Configure VM
       community.vmware.vmware_guest:
-        hostname: "{{ GOVC_URL }}"
-        username: "{{ GOVC_USERNAME }}"
-        password: "{{ GOVC_PASSWORD }}"
-        datacenter: "{{ DATACENTER_NAME }}"
-        name: "{{ GOVC_VM }}"
+        hostname: "{{ govc_url }}"
+        username: "{{ govc_username }}"
+        password: "{{ govc_password }}"
+        datacenter: "{{ datacenter_name }}"
+        name: "{{ govc_vm }}"
         hardware:
           memory_mb: 32000
           num_cpus: 8
@@ -337,11 +492,11 @@
 
     - name: Get VM IP
       community.vmware.vmware_guest_info:
-        hostname: "{{ GOVC_URL }}"
-        username: "{{ GOVC_USERNAME }}"
-        password: "{{ GOVC_PASSWORD }}"
-        datacenter: "{{ DATACENTER_NAME }}"
-        name: "{{ GOVC_VM }}"
+        hostname: "{{ govc_url }}"
+        username: "{{ govc_username }}"
+        password: "{{ govc_password }}"
+        datacenter: "{{ datacenter_name }}"
+        name: "{{ govc_vm }}"
         validate_certs: no
       register: vm_info
 
@@ -350,20 +505,20 @@
         VM_IP: "{{ vm_info['instance']['ipv4'] }}"
 
     - debug:
-        msg: "YOUR PORTAINER PASSWORD IS: {{ PORTAINER_PASSWORD }}"
+        msg: "YOUR PORTAINER PASSWORD IS: {{ portainer_password }}"
     - debug:
-        msg: "{{ GOVC_VM }}'s IP: {{ VM_IP }}"
+        msg: "{{ govc_vm }}'s IP: {{ vm_ip }}"
 
     - name: Define the custom DNS list
       set_fact:
-        custom_dns_a_record: "{{ VM_IP }} {{ VM_FQDN }}"
+        custom_dns_a_record: "{{ vm_ip }} {{ vm_fqdn }}"
         custom_cname_record: |
-          cname={{ PORTAINER_BACKEND_FQDN }},{{ VM_FQDN }}
-          cname={{ PORTAINER_FRONTEND_FQDN }},{{ VM_FQDN }}
-          cname={{ OPENLDAP_BACKEND_FQDN }},{{ VM_FQDN }}
-          cname={{ OPENLDAP_FRONTEND_FQDN }},{{ VM_FQDN }}
-          cname={{ VM_NEXUS_BACKEND_FQDN }},{{ VM_FQDN }}
-          cname={{ VM_NEXUS_FRONTEND_FQDN }},{{ VM_FQDN }}
+          cname={{ portainer_backend_fqdn }},{{ vm_fqdn }}
+          cname={{ portainer_frontend_fqdn }},{{ vm_fqdn }}
+          cname={{ openldap_backend_fqdn }},{{ vm_fqdn }}
+          cname={{ openldap_frontend_fqdn }},{{ vm_fqdn }}
+          cname={{ vm_nexus_backend_fqdn }},{{ vm_fqdn }}
+          cname={{ vm_nexus_frontend_fqdn }},{{ vm_fqdn }}
 
     - name: Append the custom DNS list to the pihole custom list file and restart the DNS service
       shell: |
