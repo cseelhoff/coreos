@@ -2,7 +2,7 @@ version: '3'
 
 services:
   traefik:
-    image: {{ TRAEFIK_DOCKER_IMAGE }}
+    image: {{ traefik_docker_image }}
     container_name: traefik
     restart: unless-stopped
     security_opt:
@@ -13,28 +13,28 @@ services:
       - 80:80
       - 443:443
     environment:
-      - CF_DNS_API_TOKEN={{ CF_DNS_API_TOKEN }}
+      - CF_DNS_API_TOKEN={{ cf_dns_api_token }}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - {{ TRAEFIK_DATA_DIR }}/traefik.yml:/traefik.yml:ro
-      - {{ TRAEFIK_DATA_DIR }}/config.yml:/config.yml:ro
+      - {{ traefik_data_dir }}/traefik.yml:/traefik.yml:ro
+      - {{ traefik_data_dir }}/config.yml:/config.yml:ro
       - traefik-data:/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.entrypoints=http"
-      - "traefik.http.routers.traefik.rule=Host(`{{ TRAEFIK_FQDN }}`)"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users={{ TRAEFIK_AUTH }}"
+      - "traefik.http.routers.traefik.rule=Host(`{{ traefik_fqdn }}`)"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users={{ traefik_auth }}"
       - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
       - "traefik.http.routers.traefik-secure.entrypoints=https"
-      - "traefik.http.routers.traefik-secure.rule=Host(`{{ TRAEFIK_FQDN }}`)"
+      - "traefik.http.routers.traefik-secure.rule=Host(`{{ traefik_fqdn }}`)"
       - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
       - "traefik.http.routers.traefik-secure.tls=true"
       - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].main={{ DOMAIN_NAME }}"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*{{ DOMAIN_NAME }}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main={{ domain_name }}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*{{ domain_name }}"
       - "traefik.http.routers.traefik-secure.service=api@internal"
 volumes:
   traefik-data:

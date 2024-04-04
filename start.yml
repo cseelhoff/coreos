@@ -180,6 +180,11 @@
         traefik_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,specialchars') }}"
       no_log: true
 
+    - name: Create Traefik docker-compose file
+      template:
+        src: bootstrap/traefik/docker-compose.yml.j2
+        dest: bootstrap/traefik/docker-compose.yml
+
     - name: Start Traefik with docker-compose
       community.docker.docker_compose:
         project_src: bootstrap/traefik/
