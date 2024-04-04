@@ -1,11 +1,10 @@
 ---
 domain_name: "example.com"
-pihole_docker_image: "pihole/pihole:2024.01.0"
 upstream_dns_ips: "1.1.1.1;1.0.0.1"
-dhcp_start: "10.0.0.100"
+dhcp_start_ip: "10.0.0.100"
 dhcp_end_ip: "10.0.0.199"
 dhcp_router_ip: "10.0.0.1"
-pihole_port: 8001
+pihole_port: "8001"
 govc_ip: "10.0.1.41"
 govc_url: "vsphere2.us.177cpt.com"
 bootstrap_shortname: "bootstrap"
@@ -21,10 +20,21 @@ gitea_docker_image: "gitea/gitea:1.21.4"
 traefik_docker_image: "traefik:v2.10.4"
 phpldapadmin_docker_image: "osixia/phpldapadmin:0.9.0"
 awx_ghcr_image: "ansible/awx_devel:devel"
-portainer_port: 9000
-nexus_port: 8081
-vm_nexus_port: 8081
-docker_registry_port: 8002
-vm_docker_registry_port: 8002
-openldap_port: 8003
+portainer_port: "9000"
+nexus_port: "8081"
+vm_nexus_port: "8081"
+docker_registry_port: "8002"
+vm_docker_registry_port: "8002"
+openldap_port: "8003"
 vcenter_library_name: "library"
+nexus_shortname: "nexus"
+pihole_shortname: "pi-hole"
+vm_nexus_shortname: "vm-nexus"
+docker_shortname: " docker"
+vm_docker_shortname: "vm-docker"
+traefik_shortname: "traefik"
+portainer_shortname: "portainer"
+openldap_shortname: "openldap"
+vm_shortname: "vm_shortname"
+govc_username: "admin"
+govc_password: "password"
