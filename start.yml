@@ -1,9 +1,5 @@
 ---
 - hosts: localhost
-  vars_prompt:
-    - name: "pihole_password"
-      prompt: "Enter the Pi-hole password"
-      private: yes
   gather_facts: no
   tasks:
     - name: Include variables from vars.yml
@@ -17,11 +13,11 @@
     - name: Set additional variables
       set_fact:
         host_ip: "{{ ansible_default_ipv4.address }}"
-        dns_server_ip: "{{ host_ip }}"
-        bootstrap_ip: "{{ host_ip }}"
+        dns_server_ip: "{{ ansible_default_ipv4.address }}"
+        bootstrap_ip: "{{ ansible_default_ipv4.address }}"
         dhcp_router_ip: "{{ ansible_default_ipv4.gateway }}"
         bootstrap_fqdn: "{{ bootstrap_shortname }}.{{ domain_name }}"
-        nexus_frontend_fqdn: "{{ NEXUS_SHORTNAME }}.{{ domain_name }}"
+        nexus_frontend_fqdn: "{{ nexus_shortname }}.{{ domain_name }}"
         pihole_backend_fqdn: "pihole-backend.{{ domain_name }}"
         pihole_frontend_fqdn: "{{ pihole_shortname }}.{{ domain_name }}"
         vm_nexus_frontend_fqdn: "{{ vm_nexus_shortname }}.{{ domain_name }}"
@@ -37,22 +33,25 @@
         portainer_backend_fqdn: "{{ portainer_shortname }}-backend01.{{ domain_name }}"
         openldap_backend_fqdn: "{{ openldap_shortname }}-backend01.{{ domain_name }}"
         vm_fqdn: "{{ vm_shortname }}.{{ domain_name }}"
-        traefik_ip: "{{ bootstrap_ip }}"
-        pihole_ip: "{{ bootstrap_ip }}"
-        nexus_ip: "{{ bootstrap_ip }}"
-        docker_registry_ip: "{{ bootstrap_ip }}"
-        pihole_backend_url: "http://{{ pihole_backend_fqdn }}:{{ pihole_port }}"
-        nexus_backend_url: "http://{{ nexus_backend_fqdn }}:{{ nexus_port }}"
-        vm_nexus_backend_url: "http://{{ vm_nexus_backend_fqdn }}:{{ vm_nexus_port }}"
-        docker_registry_backend_url: "http://{{ docker_registry_backend_fqdn }}:{{ docker_registry_port }}"
-        vm_docker_registry_backend_url: "http://{{ vm_docker_registry_backend_fqdn }}:{{ vm_docker_registry_port }}"
+        traefik_ip: "{{ ansible_default_ipv4.address }}"
+        pihole_ip: "{{ ansible_default_ipv4.address }}"
+        nexus_ip: "{{ ansible_default_ipv4.address }}"
+        docker_registry_ip: "{{ ansible_default_ipv4.address }}"
+        pihole_backend_url: "http://pihole-backend.{{ domain_name }}:{{ pihole_port }}"
+        nexus_backend_url: "http://{{ nexus_shortname }}-backend01.{{ domain_name }}:{{ nexus_port }}"
+        vm_nexus_backend_url: "http://{{ vm_nexus_shortname }}-backend01.{{ domain_name }}:{{ vm_nexus_port }}"
+        docker_registry_backend_url: "http://{{ docker_shortname }}-backend01.{{ domain_name }}:{{ docker_registry_port }}"
+        vm_docker_registry_backend_url: "http://{{ vm_docker_shortname }}-backend01.{{ domain_name }}:{{ vm_docker_registry_port }}"
         portainer_localhost_url: "http://localhost:{{ portainer_port }}"
-        portainer_backend_url: "http://{{ portainer_backend_fqdn }}:{{ portainer_port }}"
-        openldap_backend_url: "http://{{ openldap_backend_fqdn }}:{{ openldap_port }}"
-        bootstrap_url: "http://{{ bootstrap_fqdn }}"
-        nexus_service_rest_url: "https://{{ nexus_frontend_fqdn }}/service/rest/v1"
-        vm_nexus_service_rest_url: "https://{{ vm_nexus_frontend_fqdn }}/service/rest/v1"
+        portainer_backend_url: "http://{{ portainer_shortname }}-backend01.{{ domain_name }}:{{ portainer_port }}"
+        openldap_backend_url: "http://{{ openldap_shortname }}-backend01.{{ domain_name }}:{{ openldap_port }}"
+        bootstrap_url: "http://{{ bootstrap_shortname }}.{{ domain_name }}"
+        nexus_service_rest_url: "https://{{ nexus_shortname }}.{{ domain_name }}/service/rest/v1"
+        vm_nexus_service_rest_url: "https://{{ vm_nexus_shortname }}.{{ domain_name }}/service/rest/v1"
         govc_connection_string: "{{ govc_username }}:{{ govc_password }}@{{ govc_url }}"
+
+    - name: Set additional variables 2
+      set_fact:
         services:
           - "{{ pihole_frontend_fqdn }}"
           - "{{ traefik_fqdn }}"
@@ -82,7 +81,7 @@
           VIRTUAL_HOST: "virtual-pihole.{{ domain_name }}"
           DNSMASQ_LISTENING: all
           PIHOLE_DNS_: "{{ upstream_dns_ips }}"
-          DHCP_ACTIVE: true
+          DHCP_ACTIVE: "false"
           DHCP_START: "{{ dhcp_start_ip }}"
           DHCP_END: "{{ dhcp_end_ip }}"
           DHCP_ROUTER: "{{ dhcp_router_ip }}"
@@ -122,11 +121,16 @@
     - name: Restart Pi-hole DNS service
       command: docker exec pihole pihole restartdns
 
+    - name: Gather connection details
+      command: nmcli -t -f NAME con show --active
+      register: primary_conn
+      changed_when: false
+
     - name: Set DNS to use 127.0.0.1 (Pi-hole)
       nmcli:
-        type: dns
-        interface: "{{ ansible_default_ipv4.interface }}"
-        dns: '127.0.0.1'
+        conn_name: "{{ primary_conn.stdout_lines[0] }}"
+        dns4:
+        - '127.0.0.1'
         state: present
       become: yes
 
