@@ -1,0 +1,8 @@
+---
+domain_name: "example.com"
+pihole_docker_image: "pihole/pihole:2024.01.0"
+upstream_dns_ips: "1.1.1.1;1.0.0.1"
+dhcp_start: "10.0.0.100"
+dhcp_end_ip: "10.0.0.199"
+dhcp_router_ip: "10.0.0.1"
+pihole_port: 8001

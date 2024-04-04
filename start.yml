@@ -1,6 +1,11 @@
 ---
 - hosts: localhost
+  vars_prompt:
+    - name: "pihole_password"
+      prompt: "Enter the Pi-hole password"
+      private: yes
   vars:
+    pihole_backend_fqdn: "pihole-backend.{{ domain_name }}"
     services:
       - "{{ PIHOLE_FRONTEND_FQDN }}"
       - "{{ TRAEFIK_FQDN }}"
@@ -9,8 +14,12 @@
       - "{{ PORTAINER_BACKEND_FQDN }}"
       - "{{ OPENLDAP_BACKEND_FQDN }}"
       - "{{ BOOTSTRAP_FQDN }}"
+    nexus_frontend_fqdn: "{{ NEXUS_SHORTNAME }}.{{ domain_name }}"
   gather_facts: no
   tasks:
+    - name: Include variables from vars.yml
+      include_vars:
+        file: vars.yml
     - name: Run Pi-hole Docker container
       docker_container:
         name: pihole
@@ -22,20 +31,20 @@
         capabilities:
           - NET_ADMIN
         env:
+          PIHOLE_DOMAIN: "{{ domain_name }}"
           DNSMASQ_LISTENING: all
-          TZ: "{{ timezone }}"
           PIHOLE_DNS_: "{{ upstream_dns_ips }}"
           DHCP_ACTIVE: true
           DHCP_START: "{{ dhcp_start_ip }}"
           DHCP_END: "{{ dhcp_end_ip }}"
           DHCP_ROUTER: "{{ dhcp_router_ip }}"
-          PIHOLE_DOMAIN: "{{ domain_name }}"
           VIRTUAL_HOST: "virtual-pihole.{{ domain_name }}"
           WEBPASSWORD: "{{ pihole_password }}"
           WEB_PORT: "{{ pihole_port }}"
         volumes:
           - "/etc/pihole/"
           - "/etc/dnsmasq.d/"
+          - "/etc/localtime:/etc/localtime:ro"
 
     - name: Check DNS A records for NEXUS_FRONTEND_FQDN using dig before changing local DNS settings
       command: dig +short "{{ nexus_frontend_fqdn }}"
