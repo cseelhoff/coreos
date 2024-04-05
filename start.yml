@@ -234,8 +234,8 @@
 
     - name: Create traefik.yml configuration file
       template:
-        src: bootstrap/traefik/traefik.yml.j2
-        dest: bootstrap/traefik/traefik.yml
+        src: bootstrap/traefik/data/traefik.yml.j2
+        dest: bootstrap/traefik/data/traefik.yml
 
     - name: Create traefik config.yml configuration file
       template:
