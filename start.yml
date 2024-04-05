@@ -123,6 +123,25 @@
 
     - name: Restart Pi-hole DNS service
       command: docker exec pihole pihole restartdns
+      
+    - name: Update /etc/resolv.conf
+      blockinfile:
+        path: /etc/resolv.conf
+        block: |
+          nameserver 127.0.0.1
+          search {{ DOMAIN_NAME }}
+        create: yes
+      become: yes
+
+    - name: Update /etc/systemd/resolved.conf
+      blockinfile:
+        path: /etc/systemd/resolved.conf
+        block: |
+          [Resolve]
+          DNS=127.0.0.1
+          DNSStubListener=no
+        create: yes
+      become: yes
 
     - name: Gather connection details
       command: nmcli -t -f NAME con show --active
