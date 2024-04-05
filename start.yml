@@ -130,7 +130,7 @@
       nmcli:
         conn_name: "{{ primary_conn.stdout_lines[0] }}"
         method4: "manual"
-        ipv4: "{{ ansible_default_ipv4.address }}"
+        ip4: "{{ ansible_default_ipv4.address }}"
         gw4: "{{ ansible_default_ipv4.gateway }}"
         dns4:
         - '127.0.0.1'
