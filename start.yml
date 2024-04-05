@@ -94,6 +94,9 @@
           - "/etc/pihole/"
           - "/etc/dnsmasq.d/"
           - "/etc/localtime:/etc/localtime:ro"
+        ports:
+          - "{{ pihole_port }}:{{ pihole_port }}"
+          - "53:53/tcp"
 
     - name: Set custom DNS A records
       set_fact:
