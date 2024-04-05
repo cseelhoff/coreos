@@ -48,7 +48,7 @@
         bootstrap_url: "http://{{ bootstrap_shortname }}.{{ domain_name }}"
         nexus_service_rest_url: "https://{{ nexus_shortname }}.{{ domain_name }}/service/rest/v1"
         vm_nexus_service_rest_url: "https://{{ vm_nexus_shortname }}.{{ domain_name }}/service/rest/v1"
-        govc_connection_string: "{{ govc_username }}:{{ govc_password }}@{{ govc_url }}"
+        govc_connection_string: "{{ govc_username }}:{{ govc_password }}@{{ govc_fqdn }}"
 
     - name: Set additional variables 2
       set_fact:
@@ -94,19 +94,19 @@
     - name: Set custom DNS A records
       set_fact:
         custom_dns_a_record: |
-          {{ govc_ip }} {{ govc_url }}
-          {{ bootstrap_ip }} {{ bootstrap_url }}
+          {{ govc_ip }} {{ govc_fqdn }}
+          {{ bootstrap_ip }} {{ bootstrap_fqdn }}
 
     - name: Set custom CNAME records
       set_fact:
         custom_cname_record: |
-          cname={{ bootstrap_url }},{{ pihole_backend_fqdn }}
-          cname={{ bootstrap_url }},{{ nexus_backend_fqdn }}
-          cname={{ bootstrap_url }},{{ docker_registry_backend_fqdn }}
-          cname={{ bootstrap_url }},{{ traefik_fqdn }}
-          cname={{ bootstrap_url }},{{ pihole_frontend_fqdn }}
-          cname={{ bootstrap_url }},{{ nexus_frontend_fqdn }}
-          cname={{ bootstrap_url }},{{ docker_registry_frontend_fqdn }}
+          cname={{ bootstrap_fqdn }},{{ pihole_backend_fqdn }}
+          cname={{ bootstrap_fqdn }},{{ nexus_backend_fqdn }}
+          cname={{ bootstrap_fqdn }},{{ docker_registry_backend_fqdn }}
+          cname={{ bootstrap_fqdn }},{{ traefik_fqdn }}
+          cname={{ bootstrap_fqdn }},{{ pihole_frontend_fqdn }}
+          cname={{ bootstrap_fqdn }},{{ nexus_frontend_fqdn }}
+          cname={{ bootstrap_fqdn }},{{ docker_registry_frontend_fqdn }}
 
     - name: Append the custom DNS list to the pihole custom list file
       command: docker exec pihole sh -c "echo \"{{ custom_dns_a_record }}\" >> /etc/pihole/custom.list"
@@ -499,14 +499,14 @@
 
     - name: Connect to vCenter
       community.vmware.vmware_about_info:
-        hostname: "{{ govc_url }}"
+        hostname: "{{ govc_fqdn }}"
         username: "{{ govc_username }}"
         password: "{{ govc_password }}"
         validate_certs: no
 
     - name: Create library if it does not exist
       community.vmware.vmware_content_library_manager:
-        hostname: "{{ govc_url }}"
+        hostname: "{{ govc_fqdn }}"
         username: "{{ govc_username }}"
         password: "{{ govc_password }}"
         library_name: "{{ vcenter_library_name }}"
@@ -517,7 +517,7 @@
 
     - name: Import OVA into library
       community.vmware.vmware_content_library_info:
-        hostname: "{{ govc_url }}"
+        hostname: "{{ govc_fqdn }}"
         username: "{{ govc_username }}"
         password: "{{ govc_password }}"
         library_name: "{{ vcenter_library_name }}"
@@ -526,7 +526,7 @@
 
     - name: Import OVA if it does not exist
       community.vmware.vmware_content_deploy_template:
-        hostname: "{{ govc_url }}"
+        hostname: "{{ govc_fqdn }}"
         username: "{{ govc_username }}"
         password: "{{ govc_password }}"
         template: "{{ coreos_ova_name }}"
@@ -540,7 +540,7 @@
 
     - name: Configure VM
       community.vmware.vmware_guest:
-        hostname: "{{ govc_url }}"
+        hostname: "{{ govc_fqdn }}"
         username: "{{ govc_username }}"
         password: "{{ govc_password }}"
         datacenter: "{{ datacenter_name }}"
@@ -558,7 +558,7 @@
 
     - name: Get VM IP
       community.vmware.vmware_guest_info:
-        hostname: "{{ govc_url }}"
+        hostname: "{{ govc_fqdn }}"
         username: "{{ govc_username }}"
         password: "{{ govc_password }}"
         datacenter: "{{ datacenter_name }}"
