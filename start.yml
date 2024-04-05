@@ -129,9 +129,9 @@
     - name: Set IPv4 address to current IP address and set DNS to use 127.0.0.1
       nmcli:
         conn_name: "{{ primary_conn.stdout_lines[0] }}"
-        ipv4_method: "manual"
-        ipv4_address: "{{ ansible_default_ipv4.address }}"
-        ipv4_gateway: "{{ ansible_default_ipv4.gateway }}"
+        method4: "manual"
+        ipv4: "{{ ansible_default_ipv4.address }}"
+        gw4: "{{ ansible_default_ipv4.gateway }}"
         dns4:
         - '127.0.0.1'
         state: present
