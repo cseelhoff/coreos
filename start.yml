@@ -126,15 +126,18 @@
       register: primary_conn
       changed_when: false
 
-    - name: Set DNS to use 127.0.0.1 (Pi-hole)
+    - name: Set IPv4 address to current IP address and set DNS to use 127.0.0.1
       nmcli:
         conn_name: "{{ primary_conn.stdout_lines[0] }}"
+        ipv4_method: "manual"
+        ipv4_address: "{{ ansible_default_ipv4.address }}"
+        ipv4_gateway: "{{ ansible_default_ipv4.gateway }}"
         dns4:
         - '127.0.0.1'
         state: present
       become: yes
 
-    - name: Use nmcli to reload the connection
+    - name: Use nmcli to restart the connection
       shell: |
         nmcli connection down "{{ primary_conn.stdout_lines[0] }}"
         nmcli connection up "{{ primary_conn.stdout_lines[0] }}"
