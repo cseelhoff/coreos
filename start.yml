@@ -182,9 +182,13 @@
 
     - name: Set Traefik auth
       shell: htpasswd -nb "admin" "{{ traefik_password }}" | sed -e s/\\$/\\$\\$/g
-      register: traefik_auth
-      changed_when: false
+      register: traefik_auth_output
+      #changed_when: false
 
+    - name: Set traefik_auth as the traefik_auth_output.stdout
+      set_fact:
+        traefik_auth: "{{ traefik_auth_output.stdout }}"
+        
     - name: Generate a random password for Portainer
       set_fact:
         portainer_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,specialchars') }}"
@@ -192,9 +196,13 @@
 
     - name: Set Portainer bcrypt
       shell: htpasswd -nbB admin "{{ portainer_password }}" | cut -d ":" -f 2 | sed -e s/\\$/\\$\\$/g
-      register: portainer_bcrypt
-      changed_when: false
+      register: portainer_bcrypt_output
+      #changed_when: false
 
+    - name: Set portainer_bcrypt as the portainer_bcrypt_output.stdout
+      set_fact:
+        portainer_bcrypt: "{{ portainer_bcrypt_output.stdout }}"
+        
     - name: Generate a random password for CoreOS admin
       set_fact:
         coreos_admin_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,specialchars') }}"
