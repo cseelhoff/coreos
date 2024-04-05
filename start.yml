@@ -107,13 +107,13 @@
     - name: Set custom CNAME records
       set_fact:
         custom_cname_record: |
-          {{ pihole_backend_fqdn }},cname={{ bootstrap_fqdn }}
-          {{ nexus_backend_fqdn }},cname={{ bootstrap_fqdn }}
-          {{ docker_registry_backend_fqdn }},cname={{ bootstrap_fqdn }}
-          {{ traefik_fqdn }},cname={{ bootstrap_fqdn }}
-          {{ pihole_frontend_fqdn }},cname={{ bootstrap_fqdn }}
-          {{ nexus_frontend_fqdn }},cname={{ bootstrap_fqdn }}
-          {{ docker_registry_frontend_fqdn }},cname={{ bootstrap_fqdn }}
+          cname={{ pihole_backend_fqdn }},{{ bootstrap_fqdn }}
+          cname={{ nexus_backend_fqdn }},{{ bootstrap_fqdn }}
+          cname={{ docker_registry_backend_fqdn }},{{ bootstrap_fqdn }}
+          cname={{ traefik_fqdn }},{{ bootstrap_fqdn }}
+          cname={{ pihole_frontend_fqdn }},{{ bootstrap_fqdn }}
+          cname={{ nexus_frontend_fqdn }},{{ bootstrap_fqdn }}
+          cname={{ docker_registry_frontend_fqdn }},{{ bootstrap_fqdn }}
 
     - name: Append the custom DNS list to the pihole custom list file
       command: docker exec pihole sh -c "echo \"{{ custom_dns_a_record }}\" > /etc/pihole/custom.list"
