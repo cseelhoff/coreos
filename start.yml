@@ -123,13 +123,13 @@
 
     - name: Restart Pi-hole DNS service
       command: docker exec pihole pihole restartdns
-      
+
     - name: Update /etc/resolv.conf
       blockinfile:
         path: /etc/resolv.conf
         block: |
           nameserver 127.0.0.1
-          search {{ DOMAIN_NAME }}
+          search {{ domain_name }}
         create: yes
       become: yes
 
