@@ -1,10 +1,9 @@
 http:
- #region routers 
   routers:
     pihole:
       entryPoints:
         - "https"
-      rule: "Host(`${PIHOLE_FRONTEND_FQDN}`)"
+      rule: "Host(`{{ pihole_frontend_fqdn }}`)"
       middlewares:
         - redirectregex-pihole
         - default-headers
@@ -15,7 +14,7 @@ http:
     nexus:
       entryPoints:
         - "https"
-      rule: "Host(`${NEXUS_FRONTEND_FQDN}`)"
+      rule: "Host(`{{ nexus_frontend_fqdn }}`)"
       middlewares:
         - default-headers
         - https-redirectscheme
@@ -24,7 +23,7 @@ http:
     docker_registry:
       entryPoints:
         - "https"
-      rule: "Host(`${DOCKER_REGISTRY_FRONTEND_FQDN}`)"
+      rule: "Host(`{{ docker_registry_frontend_fqdn }}`)"
       middlewares:
         - default-headers
         - https-redirectscheme
@@ -33,7 +32,7 @@ http:
     portainer:
       entryPoints:
         - "https"
-      rule: "Host(`${PORTAINER_FRONTEND_FQDN}`)"
+      rule: "Host(`{{ portainer_frontend_fqdn }}`)"
       middlewares:
         - default-headers
         - https-redirectscheme
@@ -42,41 +41,38 @@ http:
     openldap:
       entryPoints:
         - "https"
-      rule: "Host(`${OPENLDAP_FRONTEND_FQDN}`)"
+      rule: "Host(`{{ openldap_frontend_fqdn }}`)"
       middlewares:
         - default-headers
         - https-redirectscheme
       tls: {}
       service: openldap
-#endregion
-#region services
   services:
     pihole:
       loadBalancer:
         servers:
-          - url: "${PIHOLE_BACKEND_URL}"
+          - url: "{{ pihole_backend_url }}"
         passHostHeader: true
     nexus:
       loadBalancer:
         servers:
-          - url: "${NEXUS_BACKEND_URL}"
+          - url: "{{ nexus_backend_url }}"
         passHostHeader: true
     docker_registry:
       loadBalancer:
         servers:
-          - url: "${DOCKER_REGISTRY_BACKEND_URL}"
+          - url: "{{ docker_registry_backend_url }}"
         passHostHeader: true
     portainer:
       loadBalancer:
         servers:
-          - url: "${PORTAINER_BACKEND_URL}"
+          - url: "{{ portainer_backend_url }}"
         passHostHeader: true
     openldap:
       loadBalancer:
         servers:
-          - url: "${OPENLDAP_BACKEND_URL}"
+          - url: "{{ openldap_backend_url }}"
         passHostHeader: true
-#endregion
   middlewares:
     addprefix-pihole:
       addPrefix:
@@ -89,7 +85,6 @@ http:
       redirectRegex:
         regex: /admin/$
         replacement: /
-
     default-headers:
       headers:
         frameDeny: true
@@ -102,14 +97,12 @@ http:
         customFrameOptionsValue: SAMEORIGIN
         customRequestHeaders:
           X-Forwarded-Proto: https
-
     default-whitelist:
       ipWhiteList:
         sourceRange:
         - "10.0.0.0/8"
         - "192.168.0.0/16"
         - "172.16.0.0/12"
-
     secured:
       chain:
         middlewares:
