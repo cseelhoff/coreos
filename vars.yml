@@ -1,5 +1,5 @@
 ---
-domain_name: "example.com"
+domain_name: "177cpt.com"
 upstream_dns_ips: "1.1.1.1;1.0.0.1"
 dhcp_start_ip: "10.0.0.100"
 dhcp_end_ip: "10.0.0.199"

@@ -291,7 +291,7 @@
 
     - name: Get Nexus temp password
       command: "docker exec nexus cat /nexus-data/admin.password"
-      register: nexus_temp_password      
+      register: nexus_temp_password
       when: not backup_file.stat.exists
 
     - name: Change Nexus password
