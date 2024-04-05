@@ -64,7 +64,6 @@
     - name: Generate a random password for Pi-hole
       set_fact:
         pihole_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,specialchars') }}"
-      no_log: true
 
     - name: Run Pi-hole Docker container
       docker_container:
@@ -134,6 +133,10 @@
         state: present
       become: yes
 
+    - name: Use nmcli to reload the connection
+      command: nmcli connection down "{{ primary_conn.stdout_lines[0] }} && nmcli connection down "{{ primary_conn.stdout_lines[0] }}"
+      become: yes
+
     - name: Create traefik-data volume
       community.docker.docker_volume:
         name: traefik-data
@@ -178,7 +181,6 @@
     - name: Generate a random password for Traefik
       set_fact:
         traefik_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,specialchars') }}"
-      no_log: true
 
     - name: Set Traefik auth
       shell: htpasswd -nb "admin" "{{ traefik_password }}" | sed -e s/\\$/\\$\\$/g
@@ -192,7 +194,6 @@
     - name: Generate a random password for Portainer
       set_fact:
         portainer_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,specialchars') }}"
-      no_log: true
 
     - name: Set Portainer bcrypt
       shell: htpasswd -nbB admin "{{ portainer_password }}" | cut -d ":" -f 2 | sed -e s/\\$/\\$\\$/g
@@ -206,7 +207,6 @@
     - name: Generate a random password for CoreOS admin
       set_fact:
         coreos_admin_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,specialchars') }}"
-      no_log: true
 
     - name: Set CoreOS admin password hash
       shell: mkpasswd --method=yescrypt "{{ coreos_admin_password }}"
