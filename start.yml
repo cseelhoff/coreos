@@ -232,6 +232,16 @@
         src: bootstrap/traefik/docker-compose.yml.j2
         dest: bootstrap/traefik/docker-compose.yml
 
+    - name: Create traefik.yml configuration file
+      template:
+        src: bootstrap/traefik/traefik.yml.j2
+        dest: bootstrap/traefik/traefik.yml
+
+    - name: Create traefik config.yml configuration file
+      template:
+        src: bootstrap/traefik/data/config.yml.j2
+        dest: bootstrap/traefik/data/config.yml
+
     - name: Start Traefik with docker-compose
       community.docker.docker_compose:
         project_src: bootstrap/traefik/
