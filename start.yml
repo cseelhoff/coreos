@@ -134,7 +134,7 @@
       become: yes
 
     - name: Use nmcli to reload the connection
-      command: nmcli connection down "{{ primary_conn.stdout_lines[0] }} && nmcli connection down "{{ primary_conn.stdout_lines[0] }}"
+      command: nmcli connection down "{{ primary_conn.stdout_lines[0] }}" && nmcli connection down "{{ primary_conn.stdout_lines[0] }}"
       become: yes
 
     - name: Create traefik-data volume
