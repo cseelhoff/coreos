@@ -109,13 +109,10 @@
           cname={{ bootstrap_fqdn }},{{ docker_registry_frontend_fqdn }}
 
     - name: Append the custom DNS list to the pihole custom list file
-      command: docker exec pihole sh -c "echo \"{{ custom_dns_a_record }}\" >> /etc/pihole/custom.list"
-
-    - name: Create custom dnsmasq configuration file
-      command: docker exec pihole touch /etc/dnsmasq.d/02-custom.conf
+      command: docker exec pihole sh -c "echo \"{{ custom_dns_a_record }}\" > /etc/pihole/custom.list"
 
     - name: Set custom CNAME record in dnsmasq configuration file
-      command: docker exec pihole sh -c "echo \"{{ custom_cname_record }}\" > /etc/dnsmasq.d/02-custom.conf"
+      command: docker exec pihole sh -c "echo \"{{ custom_cname_record }}\" > /etc/dnsmasq.d/05-pihole-custom-cname.conf"
 
     - name: Restart Pi-hole DNS service
       command: docker exec pihole pihole restartdns
