@@ -1,0 +1,74 @@
+---
+- name: Setup BIND9 DNS server
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Include variables from vars.yml
+      include_vars:
+        file: vars.yml
+
+    - name: Install BIND9
+      apt:
+        name: bind9
+        state: present
+        update_cache: yes
+
+    - name: Ensure BIND9 is started and enabled
+      service:
+        name: bind9
+        state: started
+        enabled: yes
+
+    - name: Install dnspython
+      apt:
+        name: python3-dnspython
+        state: present
+        update_cache: yes
+
+    - name: Create zones directory
+      file:
+        path: /var/lib/bind
+        state: directory
+        owner: bind
+        group: bind
+        mode: '0755'
+
+    - name: Create zone file for {{ domain_name }}
+      copy:
+        dest: /var/lib/bind/{{ domain_name }}.hosts
+        content: |
+          $ttl    7d
+          {{ domain_name }}.       IN      SOA     bootstrap. admin.{{ domain_name }}. (
+                                2         ; Serial
+                               7d         ; Refresh
+                               1d         ; Retry
+                               28d        ; Expire
+                               7d )       ; Negative Cache TTL
+          ;
+          @       IN      NS      ns1.{{ domain_name }}.
+          {{ domain_name }}.     IN      NS       boostrap.
+
+    - name: Add zone configuration to named.conf.local
+      blockinfile:
+        path: /etc/bind/named.conf.local
+        block: |
+          zone "{{ domain_name }}" {
+              type master;
+              file "/var/lib/bind/{{ domain_name }}.hosts";
+              allow-update { 127.0.0.1; };
+          };
+    - name: Restart BIND9 to apply changes
+      service:
+        name: bind9
+        state: restarted
+        
+    - name: Add A record using nsupdate
+      community.general.nsupdate:
+        server: 127.0.0.1
+        zone: "{{ domain_name }}"
+        record: "www.{{ domain_name }}"
+        type: A
+        value: 10.0.1.99
+        ttl: 3600
+

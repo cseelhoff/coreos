@@ -1,5 +1,5 @@
 ---
-- hosts: localhost
+- hosts: 10.0.1.21
   gather_facts: no
   tasks:
     - name: Include variables from vars.yml
@@ -14,7 +14,6 @@
       set_fact:
         host_ip: "{{ ansible_default_ipv4.address }}"
         dns_server_ip: "{{ ansible_default_ipv4.address }}"
-        bootstrap_ip: "{{ ansible_default_ipv4.address }}"
         dhcp_router_ip: "{{ ansible_default_ipv4.gateway }}"
         bootstrap_fqdn: "{{ bootstrap_shortname }}.{{ domain_name }}"
         nexus_frontend_fqdn: "{{ nexus_shortname }}.{{ domain_name }}"

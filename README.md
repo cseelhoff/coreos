@@ -1,3 +1,9 @@
+## Install Instructions
+1. Create a bootstrap machine running Linux and SSH server
+1. In vars.yml, set ```boostrap_ip: "10.0.1.21"```
+2. ```ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i boostrap_ip, -u admin --ask-pass webmin.yml```
+3. Test https://boostrap_ip:10000/
+
 ## To-Do
 Change from using A records for all of the container on the pihole to using CNAME records
     - fixed except for the new .yml. That still needs to be updated to be in line with start.sh
