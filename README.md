@@ -3,6 +3,7 @@
 1. In vars.yml, set ```boostrap_ip: "10.0.1.21"```
 2. ```ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i boostrap_ip, -u admin --ask-pass webmin.yml```
 3. Test https://boostrap_ip:10000/
+4. ```ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i boostrap_ip, -u admin --ask-pass bind9.yml```
 
 ## To-Do
 Change from using A records for all of the container on the pihole to using CNAME records

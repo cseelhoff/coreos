@@ -1,7 +1,7 @@
 ---
-- name: Setup BIND9 DNS server
+- name: Setup BIND9 DNS server and DHCP server
   hosts: all
-  gather_facts: no
+  gather_facts: yes
   become: yes
   tasks:
     - name: Include variables from vars.yml
@@ -38,16 +38,24 @@
       copy:
         dest: /var/lib/bind/{{ domain_name }}.hosts
         content: |
-          $ttl    7d
-          {{ domain_name }}.       IN      SOA     bootstrap. admin.{{ domain_name }}. (
-                                2         ; Serial
-                               7d         ; Refresh
-                               1d         ; Retry
-                               28d        ; Expire
-                               7d )       ; Negative Cache TTL
+          $ORIGIN {{ domain_name }}.
+          $TTL 60
+          @ IN SOA bootstrap. hostmaster.177cpt.com. ( 1 7d 1d 28d 7d )
+            NS bootstrap.
+
+    - name: Create reverse zone file for 1.0.10.in-addr.arpa
+      copy:
+        dest: /var/lib/bind/1.0.10.in-addr.arpa.hosts
+        content: |
+          $TTL    7d
+          @       IN      SOA     bootstrap. admin.177cpt.com. (
+                                1          ; Serial
+                                7d         ; Refresh
+                                1d         ; Retry
+                                28d        ; Expire
+                                7d )       ; Negative Cache TTL
           ;
-          @       IN      NS      ns1.{{ domain_name }}.
-          {{ domain_name }}.     IN      NS       boostrap.
+          @       IN      NS      bootstrap.
 
     - name: Add zone configuration to named.conf.local
       blockinfile:
@@ -58,17 +66,87 @@
               file "/var/lib/bind/{{ domain_name }}.hosts";
               allow-update { 127.0.0.1; };
           };
+          zone "1.0.10.in-addr.arpa" {
+              type master;
+              file "/var/lib/bind/1.0.10.in-addr.arpa.hosts";
+              allow-update { 127.0.0.1; };
+          };
+
+    - name: Set ownership and permissions for /var/lib/bind
+      file:
+        path: /var/lib/bind
+        state: directory
+        owner: bind
+        group: bind
+        mode: '0755'
+        recurse: yes
+
+    - name: Replace contents of named.conf.options
+      copy:
+        dest: /etc/bind/named.conf.options
+        content: |
+          options {
+              directory "/var/cache/bind";
+
+              // Forward DNS queries to 1.1.1.1
+              forwarders {
+                  1.1.1.1;
+              };
+
+              dnssec-validation auto;
+
+              listen-on-v6 { any; };
+
+              // Allow all clients to query and perform recursive queries
+              allow-query { any; };
+              allow-recursion { any; };
+          };
+        owner: root
+        group: bind
+        mode: '0644'
+        
     - name: Restart BIND9 to apply changes
       service:
         name: bind9
         state: restarted
-        
-    - name: Add A record using nsupdate
-      community.general.nsupdate:
-        server: 127.0.0.1
-        zone: "{{ domain_name }}"
-        record: "www.{{ domain_name }}"
-        type: A
-        value: 10.0.1.99
-        ttl: 3600
 
+    - name: Install DHCP server
+      apt:
+        name: isc-dhcp-server
+        state: present
+        update_cache: yes
+
+    - name: Configure DHCP server
+      copy:
+        dest: /etc/dhcp/dhcpd.conf
+        content: |
+          default-lease-time 86400;
+          max-lease-time 86400;
+          authoritative;
+          option domain-name "177cpt.com";
+          option domain-name-servers 10.0.1.10;
+          option routers 10.0.1.2;
+          subnet 10.0.1.0 netmask 255.255.255.0 {
+            range 10.0.1.11 10.0.1.62;
+          }
+          ddns-update-style interim;
+          ignore client-updates;
+          update-static-leases on;
+          zone 177cpt.com. {
+            primary 127.0.0.1;
+          }
+          zone 1.0.10.in-addr.arpa. {
+            primary 127.0.0.1;
+          }
+
+    - name: Configure DHCP server to listen on interfaces
+      lineinfile:
+        path: /etc/default/isc-dhcp-server
+        regexp: '^INTERFACESv4='
+        line: 'INTERFACESv4="{{ ansible_default_ipv4.interface }}"'
+
+    - name: Ensure DHCP server is started and enabled
+      service:
+        name: isc-dhcp-server
+        state: started
+        enabled: yes
